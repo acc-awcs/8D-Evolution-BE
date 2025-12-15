@@ -56,8 +56,6 @@ export const addResult = async (req, res) => {
     resultCode = generateCode();
   }
 
-  console.log('HIIII', req.body);
-
   const result = new Result({
     ...req.body,
     resultCode,
