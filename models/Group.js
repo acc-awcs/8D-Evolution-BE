@@ -4,7 +4,8 @@ const groupSchema = new mongoose.Schema(
   {
     userId: mongoose.ObjectId,
     creatorRole: String, // "admin", "groupLead", or "trainedFacilitator"
-    name: String, // This field is only naming by group leads
+    creatorShortName: String,
+    name: String,
     season: String, // This fields is only for generating names for trained facilitators
     year: String, // This fields is only for generating names for trained facilitators
     organization: String, // This fields is only for generating names for trained facilitators
