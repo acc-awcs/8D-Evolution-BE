@@ -1,4 +1,4 @@
-import { generateCode } from '../helpers/general.js';
+import { generateCode, getUniqueCode } from '../helpers/general.js';
 import { Result } from '../models/Result.js';
 
 export const getResults = async (req, res) => {
@@ -45,23 +45,11 @@ export const getResultByCode = async (req, res) => {
 
 export const addResult = async (req, res) => {
   // On posting a result, generate a unique six digit code
-  let resultCode = generateCode();
-  let resultCodeIsUnique = false;
-
-  // Check to make sure there aren't any other results with that code out there.
-  // If there is, regenerate it.
-  while (!resultCodeIsUnique) {
-    const matchingResults = await Result.find({ resultCode });
-    resultCodeIsUnique = matchingResults.length < 1;
-    resultCode = generateCode();
-  }
-
+  const resultCode = getUniqueCode(generateCode, Result, 'resultCode');
   const result = new Result({
     ...req.body,
     resultCode,
   });
-
-  console.log('SAVED', result);
 
   await result.save();
 

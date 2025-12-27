@@ -18,8 +18,8 @@ export const login = async (req, res) => {
       id: user._id,
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'DEV_TOKEN_TODO_REMOVE', {
-      expiresIn: '24h', // Token expires in 1 hour
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: '24h',
     });
 
     return res.status(200).json({ success: true, msg: 'Successfully logged in!', token });
@@ -58,8 +58,8 @@ export const createAccount = async (req, res) => {
       id: newUser._id,
     };
 
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'DEV_TOKEN_TODO_REMOVE', {
-      expiresIn: '24h', // Token expires in 1 hour
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: '24h',
     });
 
     return res.status(200).json({ token });
@@ -80,7 +80,7 @@ export const checkAuth = async (req, res, next) => {
       });
     }
 
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET || 'DEV_TOKEN_TODO_REMOVE');
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ _id: decodedToken.id });
     req.user = user;
 

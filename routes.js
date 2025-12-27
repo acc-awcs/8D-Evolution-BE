@@ -1,7 +1,16 @@
 import { Router } from 'express';
 import { addResult, getResultByCode } from './controllers/results.js';
 import { checkAuth, createAccount, login, accountInfo } from './controllers/users.js';
-import { createGroup, deleteGroup, editGroup, getGroup, getGroups } from './controllers/groups.js';
+import {
+  checkReady,
+  createGroup,
+  deleteGroup,
+  editGroup,
+  getGroup,
+  getGroups,
+  getPoll,
+  pollReady,
+} from './controllers/groups.js';
 const router = Router();
 
 router.get('/results', getResultByCode);
@@ -9,6 +18,10 @@ router.post('/results', addResult);
 
 router.post('/login', login);
 router.post('/create-account', createAccount);
+
+router.get('/poll', getPoll);
+router.post('/poll/ready', pollReady);
+router.get('/poll/ready', checkReady);
 
 router.use(checkAuth);
 
