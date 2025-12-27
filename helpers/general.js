@@ -22,6 +22,7 @@ export const getUniqueCode = async (generator, MongooseObj, key, secondKey) => {
   let codeIsUnique = false;
   // Check to make sure there aren't any other objects with that code out there.
   // If so, generate a new code.
+  let code;
   while (!codeIsUnique) {
     code = generator();
     const matchingObjs = await MongooseObj.find({ [key]: code });
@@ -31,6 +32,7 @@ export const getUniqueCode = async (generator, MongooseObj, key, secondKey) => {
       codeIsUnique = secondaryMatchingObjs.length < 1;
     }
   }
+  console.log('CODE?', code);
   return code;
 };
 

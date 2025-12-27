@@ -45,7 +45,7 @@ export const getResultByCode = async (req, res) => {
 
 export const addResult = async (req, res) => {
   // On posting a result, generate a unique six digit code
-  const resultCode = getUniqueCode(generateCode, Result, 'resultCode');
+  const resultCode = await getUniqueCode(generateCode, Result, 'resultCode');
   const result = new Result({
     ...req.body,
     resultCode,
