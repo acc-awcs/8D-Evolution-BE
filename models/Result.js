@@ -11,8 +11,8 @@ const resultSchema = new mongoose.Schema(
     d7: Number,
     d8: Number,
 
-    groupCode: String,
-    sessionId: String,
+    pollCode: String,
+    pollToken: String,
 
     resultCode: String,
     isStart: Boolean,

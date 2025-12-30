@@ -12,8 +12,8 @@ const groupSchema = new mongoose.Schema(
 
     startingPointCode: String,
     endingPointCode: String,
-    collectiveStartData: [mongoose.ObjectId],
-    collectiveEndData: [mongoose.ObjectId],
+    // collectiveStartData: [mongoose.ObjectId],
+    // collectiveEndData: [mongoose.ObjectId],
     collectiveStartReady: [String],
     collectiveEndReady: [String],
   },

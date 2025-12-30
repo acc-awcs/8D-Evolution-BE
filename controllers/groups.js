@@ -2,34 +2,42 @@ import { FACILITATOR } from '../helpers/constants.js';
 import { generateNumericCode, generateUniqueCookieId, getUniqueCode } from '../helpers/general.js';
 import { Group } from '../models/Group.js';
 import jwt from 'jsonwebtoken';
+import { Result } from '../models/Result.js';
 
 export const createGroup = async (req, res) => {
   let name = req.body.name;
+  let creatorShortName = '';
 
   if (req.user.role === FACILITATOR) {
     // Facilitator group names should be formatted as: Last Name + First Initial, Organization Name, Season, Year
     name = `${req.body.organization}, ${req.body.season}, ${req.body.year}`;
+    creatorShortName = `${req.user.lastName} ${req.user.firstName?.[0]}`;
   }
   try {
     const getUniqueNumericCode = async () => {
-      await getUniqueCode(generateNumericCode, Group, 'startingPointCode', 'endingPointCode');
+      return await getUniqueCode(
+        generateNumericCode,
+        Group,
+        'startingPointCode',
+        'endingPointCode'
+      );
     };
-    const initialStartingPointCode = getUniqueNumericCode();
-    const initialEndingPointCode = getUniqueNumericCode();
+    const initialStartingPointCode = await getUniqueNumericCode();
+    const initialEndingPointCode = await getUniqueNumericCode();
     const newGroup = new Group({
       userId: req.user._id,
       creatorRole: req.user.role,
-      creatorShortName: `${req.user.lastName} ${req.user.firstName?.[0]}`,
-      name, // This field is only naming by group leads
+      name,
+      creatorShortName,
       season: req.body.season, // This fields is only for generating names for trained facilitators
       year: req.body.year, // This fields is only for generating names for trained facilitators
       organization: req.body.organization, // This fields is only for generating names for trained facilitators
       startingPointCode: initialStartingPointCode,
       endingPointCode: initialEndingPointCode,
-      // collectiveStartData: [mongoose.ObjectId],
-      // collectiveEndData: [mongoose.ObjectId],
-      // collectiveStartReady: [String],
-      // collectiveEndReady: [String],
+      collectiveStartData: [],
+      collectiveEndData: [],
+      collectiveStartReady: [],
+      collectiveEndReady: [],
     });
 
     await newGroup.save();
@@ -124,6 +132,29 @@ export const getPoll = async (req, res) => {
   }
 };
 
+export const checkPoll = async (req, res) => {
+  try {
+    const groupId = req.query.groupId;
+    const isStart = req.query.isStart === 'true';
+    const group = await Group.findById(groupId);
+    if (!group) {
+      return res.status(404).json({
+        msg: "Couldn't find a matching group",
+      });
+    }
+    const pollCode = isStart ? group.startingPointCode : group.endingPointCode;
+    const matchingResults = await Result.find({ pollCode });
+    return res.status(200).json({
+      matchingResults,
+      group,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while fetching poll data';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
 export const checkReady = async (req, res) => {
   try {
     const decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
@@ -167,6 +198,14 @@ export const pollReady = async (req, res) => {
     const pollToken = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: '24h',
     });
+
+    // Add token to group ready data
+    if (startingPointGroup) {
+      group.collectiveStartReady = [...(group.collectiveStartReady || []), pollToken];
+    } else {
+      group.collectiveEndReady = [...(group.collectiveEndReady || []), pollToken];
+    }
+    await group.save();
     return res.status(200).json({
       pollToken,
       pollCode,

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { addResult, getResultByCode } from './controllers/results.js';
 import { checkAuth, createAccount, login, accountInfo } from './controllers/users.js';
 import {
+  checkPoll,
   checkReady,
   createGroup,
   deleteGroup,
@@ -31,5 +32,6 @@ router.post('/edit-group', editGroup);
 router.post('/delete-group', deleteGroup);
 router.get('/groups', getGroups);
 router.get('/group', getGroup);
+router.get('/poll-results', checkPoll);
 
 export default router;
