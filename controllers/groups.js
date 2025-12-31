@@ -215,8 +215,13 @@ export const checkPoll = async (req, res) => {
     }
     const pollCode = isStart ? group.startPollCode : group.endPollCode;
     const matchingResults = await Result.find({ pollCode });
+    let startMatchingResults = null;
+    if (!isStart) {
+      startMatchingResults = await Result.find({ pollCode: group.startPollCode });
+    }
     return res.status(200).json({
       matchingResults,
+      startMatchingResults,
       group,
     });
   } catch (e) {
