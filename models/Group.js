@@ -10,12 +10,14 @@ const groupSchema = new mongoose.Schema(
     year: String, // This fields is only for generating names for trained facilitators
     organization: String, // This fields is only for generating names for trained facilitators
 
-    startingPointCode: String,
-    endingPointCode: String,
-    // collectiveStartData: [mongoose.ObjectId],
-    // collectiveEndData: [mongoose.ObjectId],
-    collectiveStartReady: [String],
-    collectiveEndReady: [String],
+    startPollCode: String,
+    endPollCode: String,
+    startPollInitiated: Boolean, // Poll start triggered by facilitator/lead
+    endPollInitiated: Boolean, // Poll start triggered by facilitator/lead
+    startPollDate: Date,
+    endPollDate: Date,
+    startPollReadyParticipants: [String],
+    endPollReadyParticipants: [String],
   },
   {
     timestamps: true,

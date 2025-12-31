@@ -11,6 +11,8 @@ import {
   getGroups,
   getPoll,
   pollReady,
+  beginPoll,
+  updateGroup,
 } from './controllers/groups.js';
 const router = Router();
 
@@ -24,14 +26,17 @@ router.get('/poll', getPoll);
 router.post('/poll/ready', pollReady);
 router.get('/poll/ready', checkReady);
 
+// Routes following are admin/facilitator/lead access only
 router.use(checkAuth);
 
 router.get('/account', accountInfo);
 router.post('/new-group', createGroup);
 router.post('/edit-group', editGroup);
+router.post('/update-group', updateGroup); // For updating group state during a presentation
 router.post('/delete-group', deleteGroup);
 router.get('/groups', getGroups);
 router.get('/group', getGroup);
-router.get('/poll-results', checkPoll);
+router.get('/poll/results', checkPoll);
+router.post('/poll/begin', beginPoll);
 
 export default router;

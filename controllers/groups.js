@@ -14,16 +14,6 @@ export const createGroup = async (req, res) => {
     creatorShortName = `${req.user.lastName} ${req.user.firstName?.[0]}`;
   }
   try {
-    const getUniqueNumericCode = async () => {
-      return await getUniqueCode(
-        generateNumericCode,
-        Group,
-        'startingPointCode',
-        'endingPointCode'
-      );
-    };
-    const initialStartingPointCode = await getUniqueNumericCode();
-    const initialEndingPointCode = await getUniqueNumericCode();
     const newGroup = new Group({
       userId: req.user._id,
       creatorRole: req.user.role,
@@ -32,12 +22,10 @@ export const createGroup = async (req, res) => {
       season: req.body.season, // This fields is only for generating names for trained facilitators
       year: req.body.year, // This fields is only for generating names for trained facilitators
       organization: req.body.organization, // This fields is only for generating names for trained facilitators
-      startingPointCode: initialStartingPointCode,
-      endingPointCode: initialEndingPointCode,
-      collectiveStartData: [],
-      collectiveEndData: [],
-      collectiveStartReady: [],
-      collectiveEndReady: [],
+      startPollCode: null,
+      endPollCode: null,
+      startPollReadyParticipants: [],
+      endPollReadyParticipants: [],
     });
 
     await newGroup.save();
@@ -113,19 +101,102 @@ export const deleteGroup = async (req, res) => {
   }
 };
 
+export const updateGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.body.groupId);
+    const key = req.body.key;
+    const value = req.body.value;
+
+    if (!group) {
+      return res.status(404).json({
+        msg: "Couldn't find a matching group",
+      });
+    }
+
+    if (key === 'startPollInitiated') {
+      group.startPollInitiated = value === 'true' ? true : false;
+      group.startPollDate = new Date();
+    } else if (key === 'endPollInitiated') {
+      group.endPollInitiated = value === 'true' ? true : false;
+      group.endPollDate = new Date();
+    }
+
+    await group.save();
+    return res.status(200).json({
+      group,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while fetching group';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+// Begin a new poll by creating a pollCode and resetting any existing poll data for the group
+export const beginPoll = async (req, res) => {
+  try {
+    const group = await Group.findById(req.body.groupId);
+
+    if (!group) {
+      return res.status(404).json({
+        msg: "Couldn't find a matching group",
+      });
+    }
+
+    const isStart = req.body.isStart === 'true';
+    const startOrEnd = isStart ? 'start' : 'end';
+    const initiatedField = `${startOrEnd}PollInitiated`;
+    const readyParticipantsField = `${startOrEnd}PollReadyParticipants`;
+    const pollCodeField = `${startOrEnd}PollCode`;
+    const pollDateField = `${startOrEnd}PollDate`;
+
+    // Create a unique code for poll
+    const newPollCode = await getUniqueCode(
+      generateNumericCode,
+      Group,
+      'startPollCode',
+      'endPollCode'
+    );
+    group[pollCodeField] = newPollCode;
+
+    // Reset the participant fields and initated fields
+    group[readyParticipantsField] = [];
+    group[initiatedField] = false;
+    group[pollDateField] = null;
+
+    await group.save();
+    return res.status(200).json({
+      group,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while starting poll';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
 export const getPoll = async (req, res) => {
   try {
-    const startingPointGroup = await Group.findOne({ startingPointCode: req.query.pollCode });
-    const endingPointGroup = await Group.findOne({ endingPointCode: req.query.pollCode });
-    if (!startingPointGroup && !endingPointGroup) {
+    const startingPointGroup = await Group.findOne({ startPollCode: req.query.pollCode });
+    const endingPointGroup = await Group.findOne({ endPollCode: req.query.pollCode });
+    let isStart = false;
+    if (startingPointGroup) {
+      isStart = true;
+    }
+    const group = startingPointGroup || endingPointGroup;
+
+    if (!group) {
       return res.status(404).json({
         msg: "Couldn't find a matching poll",
       });
     }
     return res.status(200).json({
-      group: startingPointGroup || endingPointGroup,
+      group,
+      isStart,
+      pollHasBeenInitiated: isStart ? group.startPollInitiated : group.endPollInitiated,
     });
   } catch (e) {
+    p;
     const msg = 'An error occurred while fetching group';
     console.error(msg, e);
     return res.status(500).json({ msg });
@@ -142,7 +213,7 @@ export const checkPoll = async (req, res) => {
         msg: "Couldn't find a matching group",
       });
     }
-    const pollCode = isStart ? group.startingPointCode : group.endingPointCode;
+    const pollCode = isStart ? group.startPollCode : group.endPollCode;
     const matchingResults = await Result.find({ pollCode });
     return res.status(200).json({
       matchingResults,
@@ -159,8 +230,8 @@ export const checkReady = async (req, res) => {
   try {
     const decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
     const pollCode = decodedToken.pollCode;
-    const startingPointGroup = await Group.findOne({ startingPointCode: pollCode });
-    const endingPointGroup = await Group.findOne({ endingPointCode: pollCode });
+    const startingPointGroup = await Group.findOne({ startPollCode: pollCode });
+    const endingPointGroup = await Group.findOne({ endPollCode: pollCode });
     if (!startingPointGroup && !endingPointGroup) {
       return res.status(404).json({
         msg: "Couldn't find a matching poll",
@@ -181,8 +252,8 @@ export const checkReady = async (req, res) => {
 export const pollReady = async (req, res) => {
   try {
     const pollCode = req.body.pollCode;
-    const startingPointGroup = await Group.findOne({ startingPointCode: pollCode });
-    const endingPointGroup = await Group.findOne({ endingPointCode: pollCode });
+    const startingPointGroup = await Group.findOne({ startPollCode: pollCode });
+    const endingPointGroup = await Group.findOne({ endPollCode: pollCode });
     if (!startingPointGroup && !endingPointGroup) {
       return res.status(404).json({
         msg: "Couldn't find a matching poll",
@@ -201,9 +272,9 @@ export const pollReady = async (req, res) => {
 
     // Add token to group ready data
     if (startingPointGroup) {
-      group.collectiveStartReady = [...(group.collectiveStartReady || []), pollToken];
+      group.startPollReadyParticipants = [...(group.startPollReadyParticipants || []), pollToken];
     } else {
-      group.collectiveEndReady = [...(group.collectiveEndReady || []), pollToken];
+      group.endPollReadyParticipants = [...(group.endPollReadyParticipants || []), pollToken];
     }
     await group.save();
     return res.status(200).json({

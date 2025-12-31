@@ -12,12 +12,12 @@ const resultSchema = new mongoose.Schema(
     d8: Number,
 
     pollCode: String,
-    pollToken: String,
+    // pollToken: String,
 
     resultCode: String,
     isStart: Boolean,
 
-    startCode: String,
+    startCode: String, // Match the result with the starting point code (for individual users)
   },
   {
     timestamps: true,
