@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { addResult, getResultByCode } from './controllers/results.js';
-import { checkAuth, createAccount, login, accountInfo } from './controllers/users.js';
+import {
+  checkAuth,
+  createAccount,
+  login,
+  accountInfo,
+  getResetPasswordToken,
+  resetPassword,
+} from './controllers/users.js';
 import {
   checkPoll,
   checkReady,
@@ -21,6 +28,8 @@ router.post('/results', addResult);
 
 router.post('/login', login);
 router.post('/create-account', createAccount);
+router.post('/reset-password-token', getResetPasswordToken);
+router.post('/reset-password', resetPassword);
 
 router.get('/poll', getPoll);
 router.post('/poll/ready', pollReady);

@@ -12,7 +12,7 @@ const resultSchema = new mongoose.Schema(
     d8: Number,
 
     pollCode: String,
-    // pollToken: String,
+    pollToken: String,
 
     resultCode: String,
     isStart: Boolean,

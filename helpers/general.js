@@ -32,7 +32,6 @@ export const getUniqueCode = async (generator, MongooseObj, key, secondKey) => {
       codeIsUnique = secondaryMatchingObjs.length < 1;
     }
   }
-  console.log('CODE?', code);
   return code;
 };
 

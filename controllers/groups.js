@@ -64,7 +64,7 @@ export const editGroup = async (req, res) => {
 
 export const getGroups = async (req, res) => {
   try {
-    const userGroups = await Group.find({ userId: req.user._id });
+    const userGroups = await Group.find({ userId: req.user._id }).sort({ createdAt: -1 });
     return res.status(200).json({
       groups: userGroups,
     });
@@ -164,6 +164,14 @@ export const beginPoll = async (req, res) => {
     group[initiatedField] = false;
     group[pollDateField] = null;
 
+    // Also clear end poll data if start data is cleared
+    if (isStart) {
+      group.endPollInitiated = false;
+      group.endPollReadyParticipants = [];
+      group.endPollCode = null;
+      group.endPollDate = null;
+    }
+
     await group.save();
     return res.status(200).json({
       group,
@@ -231,10 +239,16 @@ export const checkPoll = async (req, res) => {
   }
 };
 
+// Check if user is already ready or has already submitted a poll response
 export const checkReady = async (req, res) => {
   try {
-    const decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
-    const pollCode = decodedToken.pollCode;
+    let decodedToken = null;
+    try {
+      decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
+    } catch (e) {
+      console.log('Not a valid token', e);
+    }
+    const pollCode = req.query.pollCode;
     const startingPointGroup = await Group.findOne({ startPollCode: pollCode });
     const endingPointGroup = await Group.findOne({ endPollCode: pollCode });
     if (!startingPointGroup && !endingPointGroup) {
@@ -243,9 +257,20 @@ export const checkReady = async (req, res) => {
       });
     }
     const group = startingPointGroup || endingPointGroup;
+    let isStart = false;
+    if (startingPointGroup) {
+      isStart = true;
+    }
+    const submittedResult = await Result.findOne({ pollCode, pollToken: req.query.pollToken });
+    let alreadySubmitted = false;
+    if (submittedResult) {
+      alreadySubmitted = true;
+    }
     return res.status(200).json({
       group,
-      pollCode,
+      tokenMatchesPoll: pollCode === decodedToken?.pollCode,
+      alreadySubmitted,
+      pollHasBeenInitiated: isStart ? group.startPollInitiated : group.endPollInitiated,
     });
   } catch (e) {
     const msg = 'An error occurred while ready status';

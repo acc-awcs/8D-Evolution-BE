@@ -35,7 +35,6 @@ export const createAccount = async (req, res) => {
     const salt = await bcrypt.genSalt(10); // Generate a salt with a cost factor (e.g., 10)
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-    // TODO: Check to make sure a user with that email doesn't already exist
     const existingUser = await User.findOne({ email: req.body.email });
     if (existingUser) {
       return res.status(400).json({
@@ -70,6 +69,71 @@ export const createAccount = async (req, res) => {
   }
 };
 
+// Generate a token for a reset password email
+export const getResetPasswordToken = async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      return res.status(400).json({
+        msg: "Couldn't find an existing account with that email.",
+      });
+    }
+
+    const payload = {
+      id: user._id,
+      type: 'password-reset',
+    };
+
+    // Have the token expire in one hour
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: '1h',
+    });
+
+    return res.status(200).json({ token });
+  } catch (e) {
+    const msg = 'An error occurred while generating reset password token';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+// Complete password reset
+export const resetPassword = async (req, res) => {
+  try {
+    let decodedToken = null;
+    try {
+      decodedToken = jwt.verify(req.body.resetToken, process.env.JWT_SECRET);
+    } catch (e) {
+      return res.status(500).json({
+        msg: 'Token is invalid',
+      });
+    }
+    const user = await User.findOne({ _id: decodedToken.id });
+    if (!user || decodedToken.type !== 'password-reset') {
+      return res.status(400).json({
+        msg: 'Token is invalid',
+      });
+    }
+
+    // Reset user's password to new password
+    const salt = await bcrypt.genSalt(10); // Generate a salt with a cost factor (e.g., 10)
+    const hashedPassword = await bcrypt.hash(req.body.password, salt);
+    user.hashedPassword = hashedPassword;
+
+    await user.save();
+
+    // Return user role for correct routing to login
+    return res.status(200).json({
+      role: user.role,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while generating reset password token';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+// Validate that user is logged in
 export const checkAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization.split(' ')[1];
@@ -99,7 +163,6 @@ export const checkAuth = async (req, res, next) => {
 };
 
 export const accountInfo = (req, res) => {
-  console.log('REQ', req.user);
   const { email, role, firstName, lastName, organization } = req.user;
   return res.status(200).json({ email, role, firstName, lastName, organization });
 };
