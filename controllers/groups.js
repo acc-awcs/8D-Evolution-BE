@@ -317,3 +317,74 @@ export const pollReady = async (req, res) => {
     return res.status(500).json({ msg });
   }
 };
+
+const getAverageValFromArray = arr => {
+  const sum = arr.reduce((total, num) => num + total, 0);
+  return sum / arr.length;
+};
+
+export const formatAnswers = resultsArray => {
+  return resultsArray?.reduce(
+    (ans, res, index) => {
+      ans[0].push(res.d1);
+      ans[1].push(res.d2);
+      ans[2].push(res.d3);
+      ans[3].push(res.d4);
+      ans[4].push(res.d5);
+      ans[5].push(res.d6);
+      ans[6].push(res.d7);
+      ans[7].push(res.d8);
+      if (index === resultsArray.length - 1) {
+        return ans.map(getAverageValFromArray);
+      }
+      return ans;
+    },
+    [[], [], [], [], [], [], [], []]
+  );
+};
+
+//
+export const getGroupResults = async (req, res) => {
+  // Return group responses for facilitated groups
+  try {
+    const finishedGroups = await Group.find({ creatorRole: FACILITATOR })
+      // .limit(20)
+      .exec();
+    const resultsPromises = finishedGroups.map(group => {
+      return new Promise(async resolve => {
+        let startResults = [];
+        let endResults = [];
+        if (group.startPollInitiated) {
+          startResults = await Result.find({ pollCode: group.startPollCode });
+        }
+        if (group.endPollInitiated) {
+          endResults = await Result.find({ pollCode: group.endPollCode });
+        }
+        const averagedStartResults = formatAnswers(startResults);
+        const averagedEndResults = formatAnswers(endResults);
+        const singleValueAverageStart =
+          startResults.length > 0 ? getAverageValFromArray(averagedStartResults) : '';
+        const singleValueAverageEnd =
+          endResults.length > 0 ? getAverageValFromArray(averagedEndResults) : '';
+        resolve({
+          startResults,
+          endResults,
+          averagedStartResults,
+          averagedEndResults,
+          singleValueAverageEnd,
+          singleValueAverageStart,
+          group,
+        });
+      });
+    });
+
+    const stats = await Promise.all(resultsPromises);
+    return res.status(200).json({
+      stats,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while fetching results';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};

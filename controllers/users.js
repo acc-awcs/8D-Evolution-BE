@@ -1,12 +1,44 @@
-import { FACILITATOR, GROUP_LEAD } from '../helpers/constants.js';
+import { ADMIN, FACILITATOR, GROUP_LEAD } from '../helpers/constants.js';
 import bcrypt from 'bcrypt';
 import { User } from '../models/User.js';
 import jwt from 'jsonwebtoken';
 
+// Login for non-admin users (if an admin logs in using this method, redirect to admin home on frontend)
 export const login = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) return res.status(400).json({ msg: 'User not found.' });
+
+    // The "await" is necessary, it is a promise. Don't listen to the typescript note.
+    const isMatch = await bcrypt.compare(req.body.password, user.hashedPassword);
+    if (!isMatch) {
+      return res.status(400).json({ msg: 'Could not log in with the provided credentials' });
+    }
+
+    const payload = {
+      id: user._id,
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: '24h',
+    });
+
+    return res
+      .status(200)
+      .json({ success: true, msg: 'Successfully logged in!', token, isAdmin: user.role === ADMIN });
+  } catch (e) {
+    const msg = 'An error occurred while logging in';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+// Login for admins specifically
+export const adminLogin = async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) return res.status(400).json({ msg: 'User not found.' });
+    if (user.role !== ADMIN) return res.status(401).json({ msg: 'User is not an admin.' });
 
     // The "await" is necessary, it is a promise. Don't listen to the typescript note.
     const isMatch = await bcrypt.compare(req.body.password, user.hashedPassword);
@@ -89,7 +121,7 @@ export const getResetPasswordToken = async (req, res) => {
       expiresIn: '1h',
     });
 
-    return res.status(200).json({ token });
+    return res.status(200).json({ token, role: user.role });
   } catch (e) {
     const msg = 'An error occurred while generating reset password token';
     console.error(msg, e);
@@ -157,6 +189,41 @@ export const checkAuth = async (req, res, next) => {
     return next();
   } catch (e) {
     const msg = 'An error occurred while checking authentication';
+    console.error(msg, e);
+    return res.status(401).json({ msg });
+  }
+};
+
+// Validate that user is an admin
+export const checkAdminAuth = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        message: 'No token provided',
+      });
+    }
+
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ _id: decodedToken.id });
+    req.user = user;
+
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Could not find user for given token',
+      });
+    }
+    if (user.role !== ADMIN) {
+      res.status(401).json({
+        success: false,
+        message: 'User is not an admin',
+      });
+    }
+    return next();
+  } catch (e) {
+    const msg = 'An error occurred while checking admin authentication';
     console.error(msg, e);
     return res.status(401).json({ msg });
   }

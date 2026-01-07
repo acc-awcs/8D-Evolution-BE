@@ -7,6 +7,8 @@ import {
   accountInfo,
   getResetPasswordToken,
   resetPassword,
+  checkAdminAuth,
+  adminLogin,
 } from './controllers/users.js';
 import {
   checkPoll,
@@ -20,6 +22,7 @@ import {
   pollReady,
   beginPoll,
   updateGroup,
+  getGroupResults,
 } from './controllers/groups.js';
 const router = Router();
 
@@ -27,6 +30,7 @@ router.get('/results', getResultByCode);
 router.post('/results', addResult);
 
 router.post('/login', login);
+router.post('/admin/login', adminLogin);
 router.post('/create-account', createAccount);
 router.post('/reset-password-token', getResetPasswordToken);
 router.post('/reset-password', resetPassword);
@@ -47,5 +51,10 @@ router.get('/groups', getGroups);
 router.get('/group', getGroup);
 router.get('/poll/results', checkPoll);
 router.post('/poll/begin', beginPoll);
+
+// Routes following are admin access only
+router.use(checkAdminAuth);
+
+router.get('/group-results', getGroupResults);
 
 export default router;
