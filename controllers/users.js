@@ -8,6 +8,7 @@ export const login = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) return res.status(400).json({ msg: 'User not found.' });
+    if (user.role === ADMIN) return res.status(401).json({ msg: 'User is an admin.', admin: true });
 
     // The "await" is necessary, it is a promise. Don't listen to the typescript note.
     const isMatch = await bcrypt.compare(req.body.password, user.hashedPassword);
@@ -23,9 +24,7 @@ export const login = async (req, res) => {
       expiresIn: '24h',
     });
 
-    return res
-      .status(200)
-      .json({ success: true, msg: 'Successfully logged in!', token, isAdmin: user.role === ADMIN });
+    return res.status(200).json({ success: true, msg: 'Successfully logged in!', token });
   } catch (e) {
     const msg = 'An error occurred while logging in';
     console.error(msg, e);
@@ -38,7 +37,8 @@ export const adminLogin = async (req, res) => {
   try {
     const user = await User.findOne({ email: req.body.email });
     if (!user) return res.status(400).json({ msg: 'User not found.' });
-    if (user.role !== ADMIN) return res.status(401).json({ msg: 'User is not an admin.' });
+    if (user.role !== ADMIN)
+      return res.status(401).json({ msg: 'User is not an admin.', presenter: true });
 
     // The "await" is necessary, it is a promise. Don't listen to the typescript note.
     const isMatch = await bcrypt.compare(req.body.password, user.hashedPassword);
@@ -232,4 +232,108 @@ export const checkAdminAuth = async (req, res, next) => {
 export const accountInfo = (req, res) => {
   const { email, role, firstName, lastName, organization } = req.user;
   return res.status(200).json({ email, role, firstName, lastName, organization });
+};
+
+// Fetch all users
+export const getUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-hashedPassword');
+    return res.status(200).json({ users });
+  } catch (e) {
+    const msg = 'An error occurred while fetching users';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const getUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.query.userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'Could not find associated user',
+      });
+    }
+    return res.status(200).json({ user });
+  } catch (e) {
+    const msg = 'An error occurred while fetching user';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const updateUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.body.userId);
+    const role = req.body.role;
+
+    if (!user) {
+      return res.status(404).json({
+        msg: "Couldn't find a matching user",
+      });
+    }
+
+    if (role === ADMIN || role === GROUP_LEAD || role === FACILITATOR) {
+      user.role = role;
+    }
+
+    await user.save();
+    return res.status(200).json({
+      user,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while updating user';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const deleteAccount = async (req, res) => {
+  try {
+    const deletedUser = await User.deleteOne({ _id: req.user._id });
+    return res.status(200).json({
+      user: deletedUser,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while deleting account';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  try {
+    const deletedUser = await User.deleteOne({ _id: req.body.userId });
+    return res.status(200).json({
+      user: deletedUser,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while deleting user';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const upgradeAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        msg: "Couldn't find a matching user",
+      });
+    }
+
+    user.role = ADMIN;
+
+    await user.save();
+    return res.status(200).json({
+      user,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while updating user';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
 };

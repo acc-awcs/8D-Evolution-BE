@@ -9,6 +9,12 @@ import {
   resetPassword,
   checkAdminAuth,
   adminLogin,
+  getUsers,
+  getUser,
+  updateUser,
+  upgradeAccount,
+  deleteUser,
+  deleteAccount,
 } from './controllers/users.js';
 import {
   checkPoll,
@@ -51,10 +57,16 @@ router.get('/groups', getGroups);
 router.get('/group', getGroup);
 router.get('/poll/results', checkPoll);
 router.post('/poll/begin', beginPoll);
+router.post('/upgrade-account', upgradeAccount);
+router.post('/delete-account', deleteAccount);
 
 // Routes following are admin access only
 router.use(checkAdminAuth);
 
 router.get('/group-results', getGroupResults);
+router.get('/users', getUsers);
+router.get('/user', getUser);
+router.post('/update-user', updateUser);
+router.post('/delete-user', deleteUser);
 
 export default router;
