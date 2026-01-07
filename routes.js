@@ -57,7 +57,7 @@ router.get('/groups', getGroups);
 router.get('/group', getGroup);
 router.get('/poll/results', checkPoll);
 router.post('/poll/begin', beginPoll);
-router.post('/upgrade-account', upgradeAccount);
+// router.post('/upgrade-account', upgradeAccount);
 router.post('/delete-account', deleteAccount);
 
 // Routes following are admin access only
