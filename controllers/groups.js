@@ -3,6 +3,7 @@ import { generateNumericCode, generateUniqueCookieId, getUniqueCode } from '../h
 import { Group } from '../models/Group.js';
 import jwt from 'jsonwebtoken';
 import { Result } from '../models/Result.js';
+import { User } from '../models/User.js';
 
 export const createGroup = async (req, res) => {
   let name = req.body.name;
@@ -29,7 +30,16 @@ export const createGroup = async (req, res) => {
     });
 
     await newGroup.save();
-    return res.status(200).json(newGroup);
+
+    // Also return information for sending a new group notification to admin users (that are signed up for them)
+    const adminUsersToEmail = await User.find({ receiveNewGroupEmails: true });
+    const adminEmails = adminUsersToEmail.map(u => u.email);
+    return res.status(200).json({
+      group: newGroup,
+      userName: `${req.user.firstName} ${req.user.lastName}`,
+      userEmail: req.user.email,
+      adminEmails,
+    });
   } catch (e) {
     const msg = 'An error occurred while creating new group';
     console.error(msg, e);
@@ -343,39 +353,41 @@ export const formatAnswers = resultsArray => {
   );
 };
 
+const getGroupStats = group => async resolve => {
+  let startResults = [];
+  let endResults = [];
+  if (group.startPollInitiated) {
+    startResults = await Result.find({ pollCode: group.startPollCode });
+  }
+  if (group.endPollInitiated) {
+    endResults = await Result.find({ pollCode: group.endPollCode });
+  }
+  const averagedStartResults = formatAnswers(startResults);
+  const averagedEndResults = formatAnswers(endResults);
+  // const singleValueAverageStart =
+  //   startResults.length > 0 ? getAverageValFromArray(averagedStartResults) : '';
+  // const singleValueAverageEnd =
+  //   endResults.length > 0 ? getAverageValFromArray(averagedEndResults) : '';
+  resolve({
+    startResults,
+    endResults,
+    averagedStartResults,
+    averagedEndResults,
+    // singleValueAverageEnd,
+    // singleValueAverageStart,
+    group,
+  });
+};
+
 //
-export const getGroupResults = async (req, res) => {
+export const getGroupResultsPage = async (req, res) => {
   // Return group responses for facilitated groups
   try {
-    const finishedGroups = await Group.find({ creatorRole: FACILITATOR })
+    const finishedGroups = await Group.find({ creatorRole: req.query.role })
       // .limit(20)
       .exec();
     const resultsPromises = finishedGroups.map(group => {
-      return new Promise(async resolve => {
-        let startResults = [];
-        let endResults = [];
-        if (group.startPollInitiated) {
-          startResults = await Result.find({ pollCode: group.startPollCode });
-        }
-        if (group.endPollInitiated) {
-          endResults = await Result.find({ pollCode: group.endPollCode });
-        }
-        const averagedStartResults = formatAnswers(startResults);
-        const averagedEndResults = formatAnswers(endResults);
-        const singleValueAverageStart =
-          startResults.length > 0 ? getAverageValFromArray(averagedStartResults) : '';
-        const singleValueAverageEnd =
-          endResults.length > 0 ? getAverageValFromArray(averagedEndResults) : '';
-        resolve({
-          startResults,
-          endResults,
-          averagedStartResults,
-          averagedEndResults,
-          singleValueAverageEnd,
-          singleValueAverageStart,
-          group,
-        });
-      });
+      return new Promise(getGroupStats(group));
     });
 
     const stats = await Promise.all(resultsPromises);
@@ -383,7 +395,21 @@ export const getGroupResults = async (req, res) => {
       stats,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching results';
+    const msg = 'An error occurred while fetching group results page';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const getSingleGroupResults = async (req, res) => {
+  try {
+    const group = await Group.findOne({ creatorRole: req.query.role, _id: req.query.groupId });
+    const stats = await new Promise(getGroupStats(group));
+    return res.status(200).json({
+      stats,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while fetching single group results';
     console.error(msg, e);
     return res.status(500).json({ msg });
   }

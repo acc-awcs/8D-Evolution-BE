@@ -267,6 +267,7 @@ export const updateUser = async (req, res) => {
   try {
     const user = await User.findById(req.body.userId);
     const role = req.body.role;
+    const receiveNewGroupEmails = req.body.receiveNewGroupEmails;
 
     if (!user) {
       return res.status(404).json({
@@ -276,6 +277,10 @@ export const updateUser = async (req, res) => {
 
     if (role === ADMIN || role === GROUP_LEAD || role === FACILITATOR) {
       user.role = role;
+    }
+
+    if (receiveNewGroupEmails === 'true' || receiveNewGroupEmails === 'false') {
+      user.receiveNewGroupEmails = receiveNewGroupEmails === 'true' ? true : false;
     }
 
     await user.save();

@@ -28,7 +28,8 @@ import {
   pollReady,
   beginPoll,
   updateGroup,
-  getGroupResults,
+  getGroupResultsPage,
+  getSingleGroupResults,
 } from './controllers/groups.js';
 const router = Router();
 
@@ -63,7 +64,8 @@ router.post('/delete-account', deleteAccount);
 // Routes following are admin access only
 router.use(checkAdminAuth);
 
-router.get('/group-results', getGroupResults);
+router.get('/group-results-page', getGroupResultsPage);
+router.get('/group-results-single', getSingleGroupResults);
 router.get('/users', getUsers);
 router.get('/user', getUser);
 router.post('/update-user', updateUser);

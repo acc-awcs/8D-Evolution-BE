@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema(
     firstName: String,
     lastName: String,
     organization: String,
+    // Only for Admin
+    receiveNewGroupEmails: Boolean,
   },
   {
     timestamps: true,
