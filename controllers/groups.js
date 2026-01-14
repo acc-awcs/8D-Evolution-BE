@@ -419,14 +419,21 @@ export const getGroupResultsPage = async (req, res) => {
         },
       },
     ]);
+
     const resultsPromises = finishedGroups.map(group => {
       return new Promise(getGroupStats(group));
     });
 
     const stats = await Promise.all(resultsPromises);
 
-    const totalAverageStart = getTotalAverage(stats, 'averagedStartResults');
-    const totalAverageEnd = getTotalAverage(stats, 'averagedEndResults');
+    const isValid = v => v && !Array.isArray(v);
+
+    // Only calculate total average for fully complete groups
+    const finishedStats = stats.filter(
+      s => isValid(s.averagedStartResults?.[0]) && isValid(s.averagedEndResults?.[0])
+    );
+    const totalAverageStart = getTotalAverage(finishedStats, 'averagedStartResults');
+    const totalAverageEnd = getTotalAverage(finishedStats, 'averagedEndResults');
     return res.status(200).json({
       stats,
       totalAverageStart,
