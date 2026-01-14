@@ -1,8 +1,8 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 const groupSchema = new mongoose.Schema(
   {
-    userId: mongoose.ObjectId,
+    userId: { type: Schema.Types.ObjectId, ref: 'User' },
     creatorRole: String, // "admin", "groupLead", or "trainedFacilitator"
     creatorShortName: String,
     name: String,

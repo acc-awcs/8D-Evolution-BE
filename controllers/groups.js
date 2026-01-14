@@ -63,7 +63,6 @@ export const editGroup = async (req, res) => {
       group.year = req.body.year;
     }
     await group.save();
-    // console.log('EDITING GROUP???', group);
     return res.status(200).json(group);
   } catch (e) {
     const msg = 'An error occurred while editing group';
@@ -333,7 +332,7 @@ const getAverageValFromArray = arr => {
   return sum / arr.length;
 };
 
-export const formatAnswers = resultsArray => {
+const formatAnswers = resultsArray => {
   return resultsArray?.reduce(
     (ans, res, index) => {
       ans[0].push(res.d1);
@@ -353,29 +352,51 @@ export const formatAnswers = resultsArray => {
   );
 };
 
+const getTotalAverage = (statsArray, key) => {
+  return statsArray?.reduce(
+    (ans, stat, index) => {
+      if (stat[key]?.[0] && !Array.isArray(stat[key]?.[0])) {
+        ans[0].push(stat[key]?.[0]);
+        ans[1].push(stat[key]?.[1]);
+        ans[2].push(stat[key]?.[2]);
+        ans[3].push(stat[key]?.[3]);
+        ans[4].push(stat[key]?.[4]);
+        ans[5].push(stat[key]?.[5]);
+        ans[6].push(stat[key]?.[6]);
+        ans[7].push(stat[key]?.[7]);
+      }
+      if (index === statsArray.length - 1) {
+        return ans.map(getAverageValFromArray);
+      }
+      return ans;
+    },
+    [[], [], [], [], [], [], [], []]
+  );
+};
+
 const getGroupStats = group => async resolve => {
   let startResults = [];
   let endResults = [];
+  let user = null;
   if (group.startPollInitiated) {
     startResults = await Result.find({ pollCode: group.startPollCode });
   }
   if (group.endPollInitiated) {
     endResults = await Result.find({ pollCode: group.endPollCode });
   }
+  // if (group.userId) {
+  //   user = await User.findById(group.userId).select('firstName lastName role email _id');
+  // }
   const averagedStartResults = formatAnswers(startResults);
   const averagedEndResults = formatAnswers(endResults);
-  // const singleValueAverageStart =
-  //   startResults.length > 0 ? getAverageValFromArray(averagedStartResults) : '';
-  // const singleValueAverageEnd =
-  //   endResults.length > 0 ? getAverageValFromArray(averagedEndResults) : '';
+
   resolve({
     startResults,
     endResults,
     averagedStartResults,
     averagedEndResults,
-    // singleValueAverageEnd,
-    // singleValueAverageStart,
     group,
+    user,
   });
 };
 
@@ -383,16 +404,33 @@ const getGroupStats = group => async resolve => {
 export const getGroupResultsPage = async (req, res) => {
   // Return group responses for facilitated groups
   try {
-    const finishedGroups = await Group.find({ creatorRole: req.query.role })
-      // .limit(20)
-      .exec();
+    const finishedGroups = await Group.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $match: {
+          'user.role': req.query.role,
+        },
+      },
+    ]);
     const resultsPromises = finishedGroups.map(group => {
       return new Promise(getGroupStats(group));
     });
 
     const stats = await Promise.all(resultsPromises);
+
+    const totalAverageStart = getTotalAverage(stats, 'averagedStartResults');
+    const totalAverageEnd = getTotalAverage(stats, 'averagedEndResults');
     return res.status(200).json({
       stats,
+      totalAverageStart,
+      totalAverageEnd,
     });
   } catch (e) {
     const msg = 'An error occurred while fetching group results page';
