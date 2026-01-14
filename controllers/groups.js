@@ -384,9 +384,9 @@ const getGroupStats = group => async resolve => {
   if (group.endPollInitiated) {
     endResults = await Result.find({ pollCode: group.endPollCode });
   }
-  // if (group.userId) {
-  //   user = await User.findById(group.userId).select('firstName lastName role email _id');
-  // }
+  if (!group?.user?.[0] && group.userId) {
+    user = await User.findById(group.userId).select('firstName lastName role email _id');
+  }
   const averagedStartResults = formatAnswers(startResults);
   const averagedEndResults = formatAnswers(endResults);
 
@@ -396,7 +396,7 @@ const getGroupStats = group => async resolve => {
     averagedStartResults,
     averagedEndResults,
     group,
-    user,
+    user: group?.user?.[0] || user,
   });
 };
 
