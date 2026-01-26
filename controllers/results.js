@@ -19,17 +19,29 @@ export const getResultById = async (req, res) => {
 
 export const getResultByCode = async (req, res) => {
   try {
-    const result = await Result.findOne({ resultCode: req.query.resultCode });
+    let query = { resultCode: req.query.resultCode };
+    if (req.query.startOnly === 'true') {
+      query.isStart = true;
+    }
+    const result = await Result.findOne(query);
     if (!result) {
       return res.status(404).json({ msg: "Couldn't find a result with that code" });
     }
 
-    // if it's an ending point code, pull the starting point data too and return it! :)
+    // if it's an ending point code, pull the starting point data too and return it!
     if (!result.isStart && result.startCode) {
       const startingPointResults = await Result.findOne({ resultCode: result.startCode });
       return res.status(200).json({
         currentResults: result,
         startingPointResults,
+      });
+    }
+
+    // If there's already an ending point result with this starting point code, have the frontend redirect to it
+    const endingPointResult = await Result.findOne({ startCode: req.query.resultCode });
+    if (endingPointResult?.resultCode) {
+      return res.status(200).json({
+        redirectCode: endingPointResult?.resultCode,
       });
     }
 
