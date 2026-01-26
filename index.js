@@ -22,7 +22,7 @@ app.use(cors());
 app.use('/api', router);
 
 app.get('/', (req, res) => {
-  res.send('Hello from Express!');
+  res.status(200).send('Hello from Express!');
 });
 
 app.listen(PORT, error => {

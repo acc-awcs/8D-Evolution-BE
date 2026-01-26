@@ -1,4 +1,4 @@
-import { ADMIN, FACILITATOR, GROUP_LEAD } from '../helpers/constants.js';
+import { ADMIN, FACILITATOR, GROUP_LEAD, TABLE_PAGE_SIZE } from '../helpers/constants.js';
 import bcrypt from 'bcrypt';
 import { User } from '../models/User.js';
 import jwt from 'jsonwebtoken';
@@ -236,9 +236,27 @@ export const accountInfo = (req, res) => {
 
 // Fetch all users
 export const getUsers = async (req, res) => {
+  const page = req.query.page;
+  let validPage = page;
+  const showGroupLeads = req.query.showGroupLeads === 'true';
+  let query = {
+    $or: [{ role: FACILITATOR }, { role: ADMIN }],
+  };
+  if (showGroupLeads) {
+    query = {};
+  }
   try {
-    const users = await User.find().select('-hashedPassword');
-    return res.status(200).json({ users });
+    const totalCount = await User.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
+    if (totalPages - 1 < parseInt(page, 10)) {
+      validPage = totalPages - 1;
+    }
+    const users = await User.find(query)
+      .select('-hashedPassword')
+      .skip(TABLE_PAGE_SIZE * validPage)
+      .limit(TABLE_PAGE_SIZE);
+
+    return res.status(200).json({ users, totalPages, validPage });
   } catch (e) {
     const msg = 'An error occurred while fetching users';
     console.error(msg, e);

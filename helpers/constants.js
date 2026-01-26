@@ -5,3 +5,5 @@ export const ADMIN = 'admin';
 export const START_STATUS = 'start';
 export const END_STATUS = 'end';
 export const COMPLETE_STATUS = 'complete';
+
+export const TABLE_PAGE_SIZE = 10;

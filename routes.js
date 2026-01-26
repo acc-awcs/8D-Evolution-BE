@@ -30,6 +30,7 @@ import {
   updateGroup,
   getGroupResultsPage,
   getSingleGroupResults,
+  getAggregatedGroupStats,
 } from './controllers/groups.js';
 const router = Router();
 
@@ -65,6 +66,7 @@ router.post('/delete-account', deleteAccount);
 router.use(checkAdminAuth);
 
 router.get('/group-results-page', getGroupResultsPage);
+router.get('/group-results-aggregate', getAggregatedGroupStats);
 router.get('/group-results-single', getSingleGroupResults);
 router.get('/users', getUsers);
 router.get('/user', getUser);

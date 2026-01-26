@@ -1,4 +1,4 @@
-import { FACILITATOR } from '../helpers/constants.js';
+import { FACILITATOR, TABLE_PAGE_SIZE } from '../helpers/constants.js';
 import { generateNumericCode, generateUniqueCookieId, getUniqueCode } from '../helpers/general.js';
 import { Group } from '../models/Group.js';
 import jwt from 'jsonwebtoken';
@@ -10,8 +10,8 @@ export const createGroup = async (req, res) => {
   let creatorShortName = '';
 
   if (req.user.role === FACILITATOR) {
-    // Facilitator group names should be formatted as: Last Name + First Initial, Organization Name, Season, Year
-    name = `${req.body.organization}, ${req.body.season}, ${req.body.year}`;
+    // Facilitator group names should be formatted as: Last Name + First Initial, Organization Name, Month, Year
+    name = `${req.body.organization}, ${req.body.month}, ${req.body.year}`;
     creatorShortName = `${req.user.lastName} ${req.user.firstName?.[0]}`;
   }
   try {
@@ -20,7 +20,7 @@ export const createGroup = async (req, res) => {
       creatorRole: req.user.role,
       name,
       creatorShortName,
-      season: req.body.season, // This fields is only for generating names for trained facilitators
+      month: req.body.month, // This fields is only for generating names for trained facilitators
       year: req.body.year, // This fields is only for generating names for trained facilitators
       organization: req.body.organization, // This fields is only for generating names for trained facilitators
       startPollCode: null,
@@ -51,14 +51,14 @@ export const editGroup = async (req, res) => {
   let name = req.body.name;
 
   if (req.user.role === FACILITATOR) {
-    name = `${req.body.organization}, ${req.body.season}, ${req.body.year}`;
+    name = `${req.body.organization}, ${req.body.month}, ${req.body.year}`;
   }
   try {
     const group = await Group.findById(req.body.groupId);
 
     group.name = name;
     if (req.user.role === FACILITATOR) {
-      group.season = req.body.season;
+      group.month = req.body.month;
       group.organization = req.body.organization;
       group.year = req.body.year;
     }
@@ -248,15 +248,21 @@ export const checkPoll = async (req, res) => {
   }
 };
 
+const createPollToken = (group, pollCode) => {
+  const payload = {
+    cookieId: generateUniqueCookieId(),
+    pollCode,
+    groupId: group._id,
+  };
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: '24h',
+  });
+};
+
 // Check if user is already ready or has already submitted a poll response
 export const checkReady = async (req, res) => {
   try {
-    let decodedToken = null;
-    try {
-      decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
-    } catch (e) {
-      console.log('Not a valid token', e);
-    }
+    // Find the associated group
     const pollCode = req.query.pollCode;
     const startingPointGroup = await Group.findOne({ startPollCode: pollCode });
     const endingPointGroup = await Group.findOne({ endPollCode: pollCode });
@@ -270,16 +276,37 @@ export const checkReady = async (req, res) => {
     if (startingPointGroup) {
       isStart = true;
     }
-    const submittedResult = await Result.findOne({ pollCode, pollToken: req.query.pollToken });
+
+    // Check to see if this user has a pollToken. Use it to determine if they are ready or have already submitted.
+    // If not, create a new pollToken.
+    let decodedToken = null;
+    let newPollToken = null;
+    let submittedResult = null;
     let alreadySubmitted = false;
-    if (submittedResult) {
-      alreadySubmitted = true;
+    try {
+      decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
+    } catch (e) {
+      console.log('Does not have a valid poll token, will create a new one');
     }
+
+    const tokenMatchesPoll = pollCode === decodedToken?.pollCode;
+
+    if (tokenMatchesPoll) {
+      submittedResult = await Result.findOne({ pollCode, pollToken: req.query.pollToken });
+      if (submittedResult) {
+        alreadySubmitted = true;
+      }
+    } else {
+      // Also create a new poll token if they have an old poll token
+      newPollToken = createPollToken(group, pollCode);
+    }
+
     return res.status(200).json({
       group,
-      tokenMatchesPoll: pollCode === decodedToken?.pollCode,
+      tokenMatchesPoll,
       alreadySubmitted,
       pollHasBeenInitiated: isStart ? group.startPollInitiated : group.endPollInitiated,
+      newPollToken,
     });
   } catch (e) {
     const msg = 'An error occurred while ready status';
@@ -300,14 +327,7 @@ export const pollReady = async (req, res) => {
     }
     const group = startingPointGroup || endingPointGroup;
     // Create a unique cookie token for a user's poll
-    const payload = {
-      cookieId: generateUniqueCookieId(),
-      pollCode,
-      groupId: group._id,
-    };
-    const pollToken = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: '24h',
-    });
+    const pollToken = createPollToken(group, pollCode);
 
     // Add token to group ready data
     if (startingPointGroup) {
@@ -400,27 +420,88 @@ const getGroupStats = group => async resolve => {
   });
 };
 
-//
+// Return table of unique, paginated groups, plus aggregated stats
 export const getGroupResultsPage = async (req, res) => {
-  // Return group responses for facilitated groups
-  try {
-    const finishedGroups = await Group.aggregate([
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      {
-        $match: {
-          'user.role': req.query.role,
-        },
-      },
-    ]);
+  const page = req.query.page;
 
-    const resultsPromises = finishedGroups.map(group => {
+  const aggregateQuery = [
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    {
+      $match: {
+        'user.role': req.query.role,
+      },
+    },
+  ];
+
+  try {
+    // Get group ids to display
+    const totalPaginatedCount = await Group.aggregate([
+      ...aggregateQuery,
+      { $count: 'totalDocuments' },
+    ]);
+    const totalCount = totalPaginatedCount?.[0]?.totalDocuments;
+    let validPage = page;
+    const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
+    if (totalPages - 1 < parseInt(page, 10)) {
+      validPage = totalPages - 1;
+    }
+    if (parseInt(page, 10) < 0) {
+      validPage = 0;
+    }
+    const paginatedGroups = await Group.aggregate(aggregateQuery)
+      .sort({ createdAt: -1 })
+      .skip(TABLE_PAGE_SIZE * validPage)
+      .limit(TABLE_PAGE_SIZE);
+
+    return res.status(200).json({
+      paginatedGroups,
+      totalPages,
+      validPage,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while fetching group results page';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const delay = ms => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+export const getAggregatedGroupStats = async (req, res) => {
+  const page = req.query.page;
+
+  // await delay(2000);
+
+  const aggregateQuery = [
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'user',
+      },
+    },
+    {
+      $match: {
+        'user.role': req.query.role,
+      },
+    },
+  ];
+
+  try {
+    // Groups for stats
+    const statGroups = await Group.aggregate(aggregateQuery);
+
+    const resultsPromises = statGroups.map(group => {
       return new Promise(getGroupStats(group));
     });
 
