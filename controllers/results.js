@@ -38,11 +38,13 @@ export const getResultByCode = async (req, res) => {
     }
 
     // If there's already an ending point result with this starting point code, have the frontend redirect to it
-    const endingPointResult = await Result.findOne({ startCode: req.query.resultCode });
-    if (endingPointResult?.resultCode) {
-      return res.status(200).json({
-        redirectCode: endingPointResult?.resultCode,
-      });
+    if (req.query.startOnly === 'true') {
+      const endingPointResult = await Result.findOne({ startCode: req.query.resultCode });
+      if (endingPointResult?.resultCode) {
+        return res.status(200).json({
+          redirectCode: endingPointResult?.resultCode,
+        });
+      }
     }
 
     return res.status(200).json({
