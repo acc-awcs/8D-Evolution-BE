@@ -170,7 +170,7 @@ export const checkAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization.split(' ')[1];
     if (!token) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'No token provided',
       });
@@ -181,7 +181,7 @@ export const checkAuth = async (req, res, next) => {
     req.user = user;
 
     if (!user) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'Could not find user for given token',
       });
@@ -199,7 +199,7 @@ export const checkAdminAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization.split(' ')[1];
     if (!token) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'No token provided',
       });
@@ -210,13 +210,13 @@ export const checkAdminAuth = async (req, res, next) => {
     req.user = user;
 
     if (!user) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'Could not find user for given token',
       });
     }
     if (user.role !== ADMIN) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         message: 'User is not an admin',
       });
@@ -268,7 +268,7 @@ export const getUser = async (req, res) => {
   try {
     const user = await User.findById(req.query.userId);
     if (!user) {
-      res.status(404).json({
+      return res.status(404).json({
         success: false,
         message: 'Could not find associated user',
       });
