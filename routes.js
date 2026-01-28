@@ -47,6 +47,8 @@ router.get('/poll', getPoll);
 router.post('/poll/ready', pollReady);
 router.get('/poll/ready', checkReady);
 
+router.get('/poll/results', checkPoll);
+
 // Routes following are admin/facilitator/lead access only
 router.use(checkAuth);
 
@@ -57,7 +59,6 @@ router.post('/update-group', updateGroup); // For updating group state during a 
 router.post('/delete-group', deleteGroup);
 router.get('/groups', getGroups);
 router.get('/group', getGroup);
-router.get('/poll/results', checkPoll);
 router.post('/poll/begin', beginPoll);
 // router.post('/upgrade-account', upgradeAccount);
 router.post('/delete-account', deleteAccount);
