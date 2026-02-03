@@ -4,6 +4,7 @@ import { Group } from '../models/Group.js';
 import jwt from 'jsonwebtoken';
 import { Result } from '../models/Result.js';
 import { User } from '../models/User.js';
+import { SurveyResponse } from '../models/SurveyResponse.js';
 
 export const createGroup = async (req, res) => {
   let name = req.body.name;
@@ -515,10 +516,15 @@ export const getAggregatedGroupStats = async (req, res) => {
     );
     const totalAverageStart = getTotalAverage(finishedStats, 'averagedStartResults');
     const totalAverageEnd = getTotalAverage(finishedStats, 'averagedEndResults');
+
+    // Get survey data
+    const surveys = await SurveyResponse.find();
+
     return res.status(200).json({
       stats,
       totalAverageStart,
       totalAverageEnd,
+      surveys,
     });
   } catch (e) {
     const msg = 'An error occurred while fetching group results page';

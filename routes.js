@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { addResult, getResultByCode } from './controllers/results.js';
+import {
+  addResult,
+  addSurveyResponse,
+  getResultByCode,
+  getSurveyResponses,
+} from './controllers/results.js';
 import {
   checkAuth,
   createAccount,
@@ -36,6 +41,7 @@ const router = Router();
 
 router.get('/results', getResultByCode);
 router.post('/results', addResult);
+router.post('/survey', addSurveyResponse);
 
 router.post('/login', login);
 router.post('/admin/login', adminLogin);
@@ -62,6 +68,7 @@ router.get('/group', getGroup);
 router.post('/poll/begin', beginPoll);
 // router.post('/upgrade-account', upgradeAccount);
 router.post('/delete-account', deleteAccount);
+router.get('/survey', getSurveyResponses);
 
 // Routes following are admin access only
 router.use(checkAdminAuth);

@@ -1,5 +1,7 @@
 import { generateCode, getUniqueCode } from '../helpers/general.js';
+import { Group } from '../models/Group.js';
 import { Result } from '../models/Result.js';
+import { SurveyResponse } from '../models/SurveyResponse.js';
 
 export const getResults = async (req, res) => {
   const results = await Result.find();
@@ -47,8 +49,18 @@ export const getResultByCode = async (req, res) => {
       }
     }
 
+    // If there's a poll code, also fetch that
+    let showEndingSurvey = false;
+    if (req.query.pollCode) {
+      const endingPointGroup = await Group.findOne({ endPollCode: req.query.pollCode });
+      if (endingPointGroup) {
+        showEndingSurvey = true;
+      }
+    }
+
     return res.status(200).json({
       currentResults: result,
+      showEndingSurvey,
     });
   } catch (e) {
     const msg = 'An error occurred while fetching results';
@@ -73,4 +85,18 @@ export const addResult = async (req, res) => {
 export const deleteResult = async (req, res) => {
   const deletedResult = await Result.findByIdAndDelete(req.body.resultId);
   return res.json({ deletedResult });
+};
+
+export const addSurveyResponse = async (req, res) => {
+  console.log('HUH');
+  const response = new SurveyResponse({
+    ...req.body,
+  });
+  await response.save();
+  return res.status(200).json(response);
+};
+
+export const getSurveyResponses = async (req, res) => {
+  const surveyResponses = await SurveyResponse.find();
+  return res.json({ surveyResponses });
 };
