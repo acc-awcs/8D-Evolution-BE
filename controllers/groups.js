@@ -641,7 +641,7 @@ export const getSingleGroupResults = async (req, res) => {
       creatorRole: req.query.role,
       _id: req.query.groupId,
     });
-    const stats = await new Promise(getGroupStats(group));
+    const stats = await getGroupStats(group);
     return res.status(200).json({
       stats,
     });
