@@ -1,14 +1,25 @@
-import { FACILITATOR, TABLE_PAGE_SIZE } from '../helpers/constants.js';
-import { generateNumericCode, generateUniqueCookieId, getUniqueCode } from '../helpers/general.js';
-import { Group } from '../models/Group.js';
-import jwt from 'jsonwebtoken';
-import { Result } from '../models/Result.js';
-import { User } from '../models/User.js';
-import { SurveyResponse } from '../models/SurveyResponse.js';
+import { FACILITATOR, TABLE_PAGE_SIZE } from "../helpers/constants.js";
+import {
+  generateNumericCode,
+  generateUniqueCookieId,
+  getUniqueCode,
+} from "../helpers/general.js";
+import { Group } from "../models/Group.js";
+import jwt from "jsonwebtoken";
+import { Result } from "../models/Result.js";
+import { User } from "../models/User.js";
+import { SurveyResponse } from "../models/SurveyResponse.js";
+import {
+  addMonths,
+  endOfMonth,
+  format,
+  isWithinInterval,
+  startOfMonth,
+} from "date-fns";
 
 export const createGroup = async (req, res) => {
   let name = req.body.name;
-  let creatorShortName = '';
+  let creatorShortName = "";
 
   if (req.user.role === FACILITATOR) {
     // Facilitator group names should be formatted as: Last Name + First Initial, Organization Name, Month, Year
@@ -34,7 +45,7 @@ export const createGroup = async (req, res) => {
 
     // Also return information for sending a new group notification to admin users (that are signed up for them)
     const adminUsersToEmail = await User.find({ receiveNewGroupEmails: true });
-    const adminEmails = adminUsersToEmail.map(u => u.email);
+    const adminEmails = adminUsersToEmail.map((u) => u.email);
     return res.status(200).json({
       group: newGroup,
       userName: `${req.user.firstName} ${req.user.lastName}`,
@@ -42,7 +53,7 @@ export const createGroup = async (req, res) => {
       adminEmails,
     });
   } catch (e) {
-    const msg = 'An error occurred while creating new group';
+    const msg = "An error occurred while creating new group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -66,7 +77,7 @@ export const editGroup = async (req, res) => {
     await group.save();
     return res.status(200).json(group);
   } catch (e) {
-    const msg = 'An error occurred while editing group';
+    const msg = "An error occurred while editing group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -74,12 +85,14 @@ export const editGroup = async (req, res) => {
 
 export const getGroups = async (req, res) => {
   try {
-    const userGroups = await Group.find({ userId: req.user._id }).sort({ createdAt: -1 });
+    const userGroups = await Group.find({ userId: req.user._id }).sort({
+      createdAt: -1,
+    });
     return res.status(200).json({
       groups: userGroups,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching groups';
+    const msg = "An error occurred while fetching groups";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -92,7 +105,7 @@ export const getGroup = async (req, res) => {
       group,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching group';
+    const msg = "An error occurred while fetching group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -105,7 +118,7 @@ export const deleteGroup = async (req, res) => {
       group: deletedGroup,
     });
   } catch (e) {
-    const msg = 'An error occurred while deleting group';
+    const msg = "An error occurred while deleting group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -123,11 +136,11 @@ export const updateGroup = async (req, res) => {
       });
     }
 
-    if (key === 'startPollInitiated') {
-      group.startPollInitiated = value === 'true' ? true : false;
+    if (key === "startPollInitiated") {
+      group.startPollInitiated = value === "true" ? true : false;
       group.startPollDate = new Date();
-    } else if (key === 'endPollInitiated') {
-      group.endPollInitiated = value === 'true' ? true : false;
+    } else if (key === "endPollInitiated") {
+      group.endPollInitiated = value === "true" ? true : false;
       group.endPollDate = new Date();
     }
 
@@ -136,7 +149,7 @@ export const updateGroup = async (req, res) => {
       group,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching group';
+    const msg = "An error occurred while fetching group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -153,8 +166,8 @@ export const beginPoll = async (req, res) => {
       });
     }
 
-    const isStart = req.body.isStart === 'true';
-    const startOrEnd = isStart ? 'start' : 'end';
+    const isStart = req.body.isStart === "true";
+    const startOrEnd = isStart ? "start" : "end";
     const initiatedField = `${startOrEnd}PollInitiated`;
     const readyParticipantsField = `${startOrEnd}PollReadyParticipants`;
     const pollCodeField = `${startOrEnd}PollCode`;
@@ -164,8 +177,8 @@ export const beginPoll = async (req, res) => {
     const newPollCode = await getUniqueCode(
       generateNumericCode,
       Group,
-      'startPollCode',
-      'endPollCode'
+      "startPollCode",
+      "endPollCode",
     );
     group[pollCodeField] = newPollCode;
 
@@ -187,7 +200,7 @@ export const beginPoll = async (req, res) => {
       group,
     });
   } catch (e) {
-    const msg = 'An error occurred while starting poll';
+    const msg = "An error occurred while starting poll";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -195,8 +208,12 @@ export const beginPoll = async (req, res) => {
 
 export const getPoll = async (req, res) => {
   try {
-    const startingPointGroup = await Group.findOne({ startPollCode: req.query.pollCode });
-    const endingPointGroup = await Group.findOne({ endPollCode: req.query.pollCode });
+    const startingPointGroup = await Group.findOne({
+      startPollCode: req.query.pollCode,
+    });
+    const endingPointGroup = await Group.findOne({
+      endPollCode: req.query.pollCode,
+    });
     let isStart = false;
     if (startingPointGroup) {
       isStart = true;
@@ -211,11 +228,13 @@ export const getPoll = async (req, res) => {
     return res.status(200).json({
       group,
       isStart,
-      pollHasBeenInitiated: isStart ? group.startPollInitiated : group.endPollInitiated,
+      pollHasBeenInitiated: isStart
+        ? group.startPollInitiated
+        : group.endPollInitiated,
     });
   } catch (e) {
     p;
-    const msg = 'An error occurred while fetching group';
+    const msg = "An error occurred while fetching group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -224,7 +243,7 @@ export const getPoll = async (req, res) => {
 export const checkPoll = async (req, res) => {
   try {
     const groupId = req.query.groupId;
-    const isStart = req.query.isStart === 'true';
+    const isStart = req.query.isStart === "true";
     const group = await Group.findById(groupId);
     if (!group) {
       return res.status(404).json({
@@ -235,7 +254,9 @@ export const checkPoll = async (req, res) => {
     const matchingResults = await Result.find({ pollCode });
     let startMatchingResults = null;
     if (!isStart) {
-      startMatchingResults = await Result.find({ pollCode: group.startPollCode });
+      startMatchingResults = await Result.find({
+        pollCode: group.startPollCode,
+      });
     }
     return res.status(200).json({
       matchingResults,
@@ -243,7 +264,7 @@ export const checkPoll = async (req, res) => {
       group,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching poll data';
+    const msg = "An error occurred while fetching poll data";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -256,7 +277,7 @@ const createPollToken = (group, pollCode) => {
     groupId: group._id,
   };
   return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: '24h',
+    expiresIn: "24h",
   });
 };
 
@@ -287,13 +308,16 @@ export const checkReady = async (req, res) => {
     try {
       decodedToken = jwt.verify(req.query.pollToken, process.env.JWT_SECRET);
     } catch (e) {
-      console.log('Does not have a valid poll token, will create a new one');
+      console.log("Does not have a valid poll token, will create a new one");
     }
 
     const tokenMatchesPoll = pollCode === decodedToken?.pollCode;
 
     if (tokenMatchesPoll) {
-      submittedResult = await Result.findOne({ pollCode, pollToken: req.query.pollToken });
+      submittedResult = await Result.findOne({
+        pollCode,
+        pollToken: req.query.pollToken,
+      });
       if (submittedResult) {
         alreadySubmitted = true;
       }
@@ -306,11 +330,13 @@ export const checkReady = async (req, res) => {
       group,
       tokenMatchesPoll,
       alreadySubmitted,
-      pollHasBeenInitiated: isStart ? group.startPollInitiated : group.endPollInitiated,
+      pollHasBeenInitiated: isStart
+        ? group.startPollInitiated
+        : group.endPollInitiated,
       newPollToken,
     });
   } catch (e) {
-    const msg = 'An error occurred while ready status';
+    const msg = "An error occurred while ready status";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -332,9 +358,15 @@ export const pollReady = async (req, res) => {
 
     // Add token to group ready data
     if (startingPointGroup) {
-      group.startPollReadyParticipants = [...(group.startPollReadyParticipants || []), pollToken];
+      group.startPollReadyParticipants = [
+        ...(group.startPollReadyParticipants || []),
+        pollToken,
+      ];
     } else {
-      group.endPollReadyParticipants = [...(group.endPollReadyParticipants || []), pollToken];
+      group.endPollReadyParticipants = [
+        ...(group.endPollReadyParticipants || []),
+        pollToken,
+      ];
     }
     await group.save();
     return res.status(200).json({
@@ -342,18 +374,18 @@ export const pollReady = async (req, res) => {
       pollCode,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching group';
+    const msg = "An error occurred while fetching group";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
 };
 
-const getAverageValFromArray = arr => {
+const getAverageValFromArray = (arr) => {
   const sum = arr.reduce((total, num) => num + total, 0);
   return sum / arr.length;
 };
 
-const formatAnswers = resultsArray => {
+const formatAnswers = (resultsArray) => {
   return resultsArray?.reduce(
     (ans, res, index) => {
       ans[0].push(res.d1);
@@ -369,7 +401,7 @@ const formatAnswers = resultsArray => {
       }
       return ans;
     },
-    [[], [], [], [], [], [], [], []]
+    [[], [], [], [], [], [], [], []],
   );
 };
 
@@ -391,11 +423,11 @@ const getTotalAverage = (statsArray, key) => {
       }
       return ans;
     },
-    [[], [], [], [], [], [], [], []]
+    [[], [], [], [], [], [], [], []],
   );
 };
 
-const getGroupStats = group => async resolve => {
+const getGroupStats = async (group) => {
   let startResults = [];
   let endResults = [];
   let user = null;
@@ -406,37 +438,49 @@ const getGroupStats = group => async resolve => {
     endResults = await Result.find({ pollCode: group.endPollCode });
   }
   if (!group?.user?.[0] && group.userId) {
-    user = await User.findById(group.userId).select('firstName lastName role email _id');
+    user = await User.findById(group.userId).select(
+      "firstName lastName role email _id",
+    );
   }
   const averagedStartResults = formatAnswers(startResults);
   const averagedEndResults = formatAnswers(endResults);
 
-  resolve({
+  return {
     startResults,
     endResults,
     averagedStartResults,
     averagedEndResults,
     group,
     user: group?.user?.[0] || user,
-  });
+  };
 };
 
-// Return table of unique, paginated groups, plus aggregated stats
+const getGroupResultsWithDate = async (group) => {
+  const startResults = await Result.find({ pollCode: group.startPollCode });
+  return {
+    numParticipants: startResults.length,
+    startPollDate: group.startPollDate,
+  };
+};
+
+// Return table of unique, paginated groups
 export const getGroupResultsPage = async (req, res) => {
   const page = req.query.page;
 
+  // TODO - clarify if we should include data by user type at the moment or at the time of facilitation (probably the latter ...)
+  // Confirm that we'd still want to have data from users that were removed?
   const aggregateQuery = [
     {
       $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user',
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
       },
     },
     {
       $match: {
-        'user.role': req.query.role,
+        "user.role": req.query.role,
       },
     },
   ];
@@ -445,7 +489,7 @@ export const getGroupResultsPage = async (req, res) => {
     // Get group ids to display
     const totalPaginatedCount = await Group.aggregate([
       ...aggregateQuery,
-      { $count: 'totalDocuments' },
+      { $count: "totalDocuments" },
     ]);
     const totalCount = totalPaginatedCount?.[0]?.totalDocuments;
     let validPage = page;
@@ -467,33 +511,27 @@ export const getGroupResultsPage = async (req, res) => {
       validPage,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching group results page';
+    const msg = "An error occurred while fetching group results page";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
 };
 
-export const delay = ms => {
-  return new Promise(resolve => setTimeout(resolve, ms));
-};
-
-export const getAggregatedGroupStats = async (req, res) => {
-  const page = req.query.page;
-
-  // await delay(2000);
-
+// Return chart data for the last 12 months on new groups and participating users
+export const getChartData = async (req, res) => {
   const aggregateQuery = [
     {
       $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user',
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
       },
     },
     {
       $match: {
-        'user.role': req.query.role,
+        "user.role": req.query.role,
+        startPollInitiated: true,
       },
     },
   ];
@@ -501,21 +539,85 @@ export const getAggregatedGroupStats = async (req, res) => {
   try {
     // Groups for stats
     const statGroups = await Group.aggregate(aggregateQuery);
+    const groupsPromise = statGroups.map((group) =>
+      getGroupResultsWithDate(group),
+    );
+    const groupsWithParticipantCount = await Promise.all(groupsPromise);
 
-    const resultsPromises = statGroups.map(group => {
-      return new Promise(getGroupStats(group));
-    });
+    const numMonthsToShow = 12;
+    const today = new Date();
+    const participantsByMonth = Array.from(
+      { length: numMonthsToShow },
+      (v, i) => {
+        const targetDate = addMonths(today, -(12 - i - 1));
+        const start = startOfMonth(targetDate);
+        const end = endOfMonth(targetDate);
+        const groupsInDateRange = groupsWithParticipantCount.filter((g) =>
+          isWithinInterval(g.startPollDate, { start, end }),
+        );
+        return {
+          // month: format(targetDate, "MMM yyyy"),
+          month: format(targetDate, "MMMM yy").split(" ").join(` '`),
+          participants: groupsInDateRange.reduce(
+            (sum, g) => g.numParticipants + sum,
+            0,
+          ),
+          groups: groupsInDateRange.length,
+        };
+      },
+    );
 
+    return res.status(200).json(participantsByMonth);
+  } catch (e) {
+    const msg = "An error occurred while fetching chart data";
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const delay = (ms) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const getAggregatedGroupStats = async (req, res) => {
+  const aggregateQuery = [
+    {
+      $lookup: {
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $match: {
+        "user.role": req.query.role,
+      },
+    },
+  ];
+
+  try {
+    // Groups for stats
+    const statGroups = await Group.aggregate(aggregateQuery);
+    const resultsPromises = statGroups.map((group) => getGroupStats(group));
     const stats = await Promise.all(resultsPromises);
 
-    const isValid = v => v && !Array.isArray(v);
+    const isValid = (v) => v && !Array.isArray(v);
 
     // Only calculate total average for fully complete groups
     const finishedStats = stats.filter(
-      s => isValid(s.averagedStartResults?.[0]) && isValid(s.averagedEndResults?.[0])
+      (s) =>
+        isValid(s.averagedStartResults?.[0]) &&
+        isValid(s.averagedEndResults?.[0]),
     );
-    const totalAverageStart = getTotalAverage(finishedStats, 'averagedStartResults');
-    const totalAverageEnd = getTotalAverage(finishedStats, 'averagedEndResults');
+    const totalAverageStart = getTotalAverage(
+      finishedStats,
+      "averagedStartResults",
+    );
+    const totalAverageEnd = getTotalAverage(
+      finishedStats,
+      "averagedEndResults",
+    );
 
     // Get survey data
     const surveys = await SurveyResponse.find();
@@ -527,7 +629,7 @@ export const getAggregatedGroupStats = async (req, res) => {
       surveys,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching group results page';
+    const msg = "An error occurred while fetching group results page";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -535,13 +637,16 @@ export const getAggregatedGroupStats = async (req, res) => {
 
 export const getSingleGroupResults = async (req, res) => {
   try {
-    const group = await Group.findOne({ creatorRole: req.query.role, _id: req.query.groupId });
+    const group = await Group.findOne({
+      creatorRole: req.query.role,
+      _id: req.query.groupId,
+    });
     const stats = await new Promise(getGroupStats(group));
     return res.status(200).json({
       stats,
     });
   } catch (e) {
-    const msg = 'An error occurred while fetching single group results';
+    const msg = "An error occurred while fetching single group results";
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
