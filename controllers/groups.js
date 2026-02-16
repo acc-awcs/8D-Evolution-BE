@@ -291,7 +291,6 @@ export const checkReady = async (req, res) => {
     }
 
     const tokenMatchesPoll = pollCode === decodedToken?.pollCode;
-
     if (tokenMatchesPoll) {
       submittedResult = await Result.findOne({ pollCode, pollToken: req.query.pollToken });
       if (submittedResult) {
