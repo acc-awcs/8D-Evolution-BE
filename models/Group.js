@@ -18,6 +18,12 @@ const groupSchema = new mongoose.Schema(
     endPollDate: Date,
     startPollReadyParticipants: [String],
     endPollReadyParticipants: [String],
+
+    manualEntry: Boolean, // Submitted directly by AWCS team
+    manualStartData: Object,
+    manualEndData: Object,
+    manualNumParticipants: Number,
+    initialManualImport: Boolean,
   },
   {
     timestamps: true,

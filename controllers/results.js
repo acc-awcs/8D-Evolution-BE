@@ -81,13 +81,18 @@ export const addResult = async (req, res) => {
   return res.status(200).json(result);
 };
 
+// Get individual responses
+export const getIndividualResults = async (req, res) => {
+  const results = await Result.find({ pollCode: null });
+  return res.json({ results });
+};
+
 export const deleteResult = async (req, res) => {
   const deletedResult = await Result.findByIdAndDelete(req.body.resultId);
   return res.json({ deletedResult });
 };
 
 export const addSurveyResponse = async (req, res) => {
-  console.log('HUH');
   const response = new SurveyResponse({
     ...req.body,
   });
