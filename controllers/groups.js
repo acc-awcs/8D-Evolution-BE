@@ -658,7 +658,7 @@ export const getGroupResultsPage = async (req, res) => {
     const groupsWithParticipantCount = await Promise.all(groupsPromise);
 
     const today = new Date();
-    const earliestStartDate = new Date('04/01/2024');
+    const earliestStartDate = new Date('06/01/2022');
     const numMonthsToShow = allTime
       ? differenceInCalendarMonths(today, earliestStartDate) + 1
       : differenceInCalendarMonths(endDate, startDate) + 1;
@@ -671,7 +671,7 @@ export const getGroupResultsPage = async (req, res) => {
       const groupsInDateRange = groupsWithParticipantCount.filter(g =>
         isWithinInterval(g.startPollDate, { start, end })
       );
-      let month = format(targetDate, 'MMMM yy').split(' ').join(` '`);
+      let month = format(targetDate, 'MMM yy').split(' ').join(` '`);
       if (i === 0 && !allTime) {
         const startDateShort = format(startDate, 'MM/dd');
         month = `${month} (>=${startDateShort})`;
@@ -703,9 +703,31 @@ export const getGroupResultsPage = async (req, res) => {
       validPage = 0;
     }
     const paginatedGroupsInit = await Group.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ initialManualImport: 1, createdAt: -1, startPollDate: -1 })
       .skip(TABLE_PAGE_SIZE * validPage)
       .limit(TABLE_PAGE_SIZE);
+
+    //    const paginatedGroupsInit = await  Group.aggregate([
+    //   {
+    //     $addFields: {
+    //       sortPriority: {
+    //         $switch: {
+    //           branches: [
+    //             { 'case': { $eq: ['$priority', 'high'] }, then: 3 },
+    //             { 'case': { $eq: ['$priority', 'medium'] }, then: 2 },
+    //             { 'case': { $eq: ['$priority', 'low'] }, then: 1 },
+    //           ],
+    //           'default': 0, // for documents with no matching priority
+    //         },
+    //       },
+    //     },
+    //   },
+    //   {
+    //     $sort: { sortPriority: -1, createdAt: -1 },
+    //   },
+    //   { $skip: TABLE_PAGE_SIZE * validPage },
+    //   { $limit: TABLE_PAGE_SIZE }
+    // ]);
 
     // Get the number of participants along with group object
     const paginatedGroupsPromise = paginatedGroupsInit.map(async group => {
