@@ -22,11 +22,23 @@ import {
 import csv from 'csvtojson';
 
 export const importManualData = async (req, res) => {
-  const csvFilePath = 'data/facilitator-data.csv';
+  // CSVs downloaded from https://docs.google.com/spreadsheets/d/17M0OK0N1E_MfBCxzaueRaHwSjl44iKvcGQ2TP0AtO3Q/edit?gid=1843839963#gid=1843839963
+  const csvFilePath = 'data/facilitator-data.csv'; // 'Complete + Running' tab
+  const participantCsvFilePath = 'data/participant-data.csv'; // 'Complete Cohorts' tab
   const jsonArray = await csv().fromFile(csvFilePath);
+  const participantJsonArray = await csv().fromFile(participantCsvFilePath);
 
   // Clear out old manual data
   await Group.deleteMany({ manualEntry: true });
+
+  // Just pull the participant data
+  const participantsByFacilitation = participantJsonArray.reduce((accum, row) => {
+    const facilitationId = row['Cohort'];
+    if (!accum[facilitationId]) {
+      accum[facilitationId] = row['Participants'];
+    }
+    return accum;
+  }, {});
 
   const valuesByFacilitation = jsonArray.reduce((accum, row) => {
     const facilitationId = row['Cohort'];
@@ -55,7 +67,7 @@ export const importManualData = async (req, res) => {
         year: row['Year'],
         manualStartData: {},
         manualEndData: {},
-        manualNumParticipants: row['Participants'],
+        manualNumParticipants: participantsByFacilitation[facilitationId] || 0,
         initialManualImport: true,
       };
     }
