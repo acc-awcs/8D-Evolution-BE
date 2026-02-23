@@ -467,8 +467,10 @@ const formatManualAnswers = answersObj => {
   ];
 };
 
+const isNonEmpty = v => v && !Array.isArray(v);
+
 const formatAnswers = resultsArray => {
-  return resultsArray?.reduce(
+  const formattedAnswers = resultsArray?.reduce(
     (ans, res, index) => {
       ans[0].push(res.d1);
       ans[1].push(res.d2);
@@ -485,10 +487,12 @@ const formatAnswers = resultsArray => {
     },
     [[], [], [], [], [], [], [], []]
   );
+  return formattedAnswers;
 };
 
 const getTotalAverage = (statsArray, key) => {
-  return statsArray?.reduce(
+  const statsToCheck = statsArray?.filter(s => isNonEmpty(s[key]?.[0])) || [];
+  const totalAverage = statsToCheck.reduce(
     (ans, stat, index) => {
       if (stat[key]?.[0] && !Array.isArray(stat[key]?.[0])) {
         ans[0].push(stat[key]?.[0]);
@@ -500,13 +504,14 @@ const getTotalAverage = (statsArray, key) => {
         ans[6].push(stat[key]?.[6]);
         ans[7].push(stat[key]?.[7]);
       }
-      if (index === statsArray.length - 1) {
+      if (index === statsToCheck.length - 1) {
         return ans.map(getAverageValFromArray);
       }
       return ans;
     },
     [[], [], [], [], [], [], [], []]
   );
+  return totalAverage;
 };
 
 const getGroupStats = async group => {
@@ -518,8 +523,12 @@ const getGroupStats = async group => {
     return {
       startResults: [],
       endResults: [],
-      averagedStartResults: formatManualAnswers(group.manualStartData),
-      averagedEndResults: formatManualAnswers(group.manualEndData),
+      averagedStartResults: group.manualStartData['d1']
+        ? formatManualAnswers(group.manualStartData)
+        : null,
+      averagedEndResults: group.manualEndData['d1']
+        ? formatManualAnswers(group.manualEndData)
+        : null,
       group,
       user: {
         firstName: group.creatorShortName,
@@ -563,83 +572,55 @@ const getGroupResultsWithDate = async group => {
   };
 };
 
-/**
- * Old Aggregate Query Logic
- * const aggregateQuery = [
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user',
-      },
-    },
-    {
-      $match: {
-        'user.role': req.query.role,
-      },
-    },
-  ];
-  // Get group ids to display
-  const totalPaginatedCount = await Group.aggregate([
-    ...aggregateQuery,
-    { $count: 'totalDocuments' },
-  ]);
-  const paginatedGroups = await Group.aggregate(aggregateQuery)
-    .sort({ createdAt: -1 })
-    .skip(TABLE_PAGE_SIZE * validPage)
-    .limit(TABLE_PAGE_SIZE);
- */
-
 // Return table of unique, paginated groups
+// export const getGroupResultsPage = async (req, res) => {
+//   const page = req.query.page;
+//   const query = {
+//     creatorRole: req.query.role,
+//   };
+
+//   try {
+//     const totalCount = await Group.find(query).countDocuments();
+//     const allGroups = await Group.find(query);
+//     // const totalCount = totalPaginatedCount?.[0]?.totalDocuments;
+//     let validPage = page;
+//     const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
+//     if (totalPages - 1 < parseInt(page, 10)) {
+//       validPage = totalPages - 1;
+//     }
+//     if (parseInt(page, 10) < 0) {
+//       validPage = 0;
+//     }
+//     const paginatedGroupsInit = await Group.find(query)
+//       .sort({ createdAt: -1 })
+//       .skip(TABLE_PAGE_SIZE * validPage)
+//       .limit(TABLE_PAGE_SIZE);
+
+//     // Get the number of participants along with group object
+//     const groupsPromise = paginatedGroupsInit.map(async group => {
+//       const numParticipants = await getGroupResultsWithDate(group);
+//       return {
+//         ...group.toJSON(),
+//         ...numParticipants,
+//       };
+//     });
+//     const paginatedGroups = await Promise.all(groupsPromise);
+
+//     return res.status(200).json({
+//       paginatedGroups,
+//       totalPages,
+//       validPage,
+//       allGroups,
+//     });
+//   } catch (e) {
+//     const msg = 'An error occurred while fetching group results page';
+//     console.error(msg, e);
+//     return res.status(500).json({ msg });
+//   }
+// };
+
 export const getGroupResultsPage = async (req, res) => {
   const page = req.query.page;
-  const query = {
-    creatorRole: req.query.role,
-  };
-
-  try {
-    const totalCount = await Group.find(query).countDocuments();
-    const allGroups = await Group.find(query);
-    // const totalCount = totalPaginatedCount?.[0]?.totalDocuments;
-    let validPage = page;
-    const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
-    if (totalPages - 1 < parseInt(page, 10)) {
-      validPage = totalPages - 1;
-    }
-    if (parseInt(page, 10) < 0) {
-      validPage = 0;
-    }
-    const paginatedGroupsInit = await Group.find(query)
-      .sort({ createdAt: -1 })
-      .skip(TABLE_PAGE_SIZE * validPage)
-      .limit(TABLE_PAGE_SIZE);
-
-    // Get the number of participants along with group object
-    const groupsPromise = paginatedGroupsInit.map(async group => {
-      const numParticipants = await getGroupResultsWithDate(group);
-      return {
-        ...group.toJSON(),
-        ...numParticipants,
-      };
-    });
-    const paginatedGroups = await Promise.all(groupsPromise);
-
-    return res.status(200).json({
-      paginatedGroups,
-      totalPages,
-      validPage,
-      allGroups,
-    });
-  } catch (e) {
-    const msg = 'An error occurred while fetching group results page';
-    console.error(msg, e);
-    return res.status(500).json({ msg });
-  }
-};
-
-// Return chart data for the last 12 months on new groups and participating users
-export const getChartData = async (req, res) => {
   const query = {
     creatorRole: req.query.role,
     startPollInitiated: true,
@@ -661,24 +642,19 @@ export const getChartData = async (req, res) => {
     } else {
       return res.status(200).json({
         invalidTimes: true,
-        msg: 'Please select a start date ',
+        msg:
+          isValid(startDate) && isValid(endDate) && !isAfter(endDate, startDate)
+            ? 'Please select an end date that occurs after the start date.'
+            : 'Please select a start and end date.',
       });
     }
   }
 
-  console.log(
-    'QUERY',
-    query,
-    usingCustomDates,
-    isValid(startDate),
-    isValid(endDate),
-    isAfter(endDate, startDate)
-  );
-
   try {
-    // Groups for stats
-    const statGroups = await Group.find(query);
-    const groupsPromise = statGroups.map(group => getGroupResultsWithDate(group));
+    const groups = await Group.find(query);
+
+    // Chart Data
+    const groupsPromise = groups.map(group => getGroupResultsWithDate(group));
     const groupsWithParticipantCount = await Promise.all(groupsPromise);
 
     const today = new Date();
@@ -697,9 +673,11 @@ export const getChartData = async (req, res) => {
       );
       let month = format(targetDate, 'MMMM yy').split(' ').join(` '`);
       if (i === 0 && !allTime) {
-        month = `${month} (>=${req.query.s})`;
+        const startDateShort = format(startDate, 'MM/dd');
+        month = `${month} (>=${startDateShort})`;
       } else if (i === numMonthsToShow - 1 && !allTime) {
-        month = `${month} (<=${req.query.e})`;
+        const endDateShort = format(endDate, 'MM/dd');
+        month = `${month} (<=${endDateShort})`;
       }
       return {
         month,
@@ -708,9 +686,50 @@ export const getChartData = async (req, res) => {
       };
     });
 
-    return res.status(200).json(participantsByMonth);
+    // Other Data
+    const statsPromise = groups.map(group => getGroupStats(group));
+    const stats = await Promise.all(statsPromise);
+    const totalAverageStart = getTotalAverage(stats, 'averagedStartResults');
+    const totalAverageEnd = getTotalAverage(stats, 'averagedEndResults');
+
+    // Paginated Data
+    const totalCount = groups.length;
+    let validPage = page;
+    const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
+    if (totalPages - 1 < parseInt(page, 10)) {
+      validPage = totalPages - 1;
+    }
+    if (parseInt(page, 10) < 0) {
+      validPage = 0;
+    }
+    const paginatedGroupsInit = await Group.find(query)
+      .sort({ createdAt: -1 })
+      .skip(TABLE_PAGE_SIZE * validPage)
+      .limit(TABLE_PAGE_SIZE);
+
+    // Get the number of participants along with group object
+    const paginatedGroupsPromise = paginatedGroupsInit.map(async group => {
+      const numParticipants = await getGroupResultsWithDate(group);
+      return {
+        ...group.toJSON(),
+        ...numParticipants,
+      };
+    });
+    const paginatedGroups = await Promise.all(paginatedGroupsPromise);
+
+    return res.status(200).json({
+      stats,
+      totalAverageStart,
+      totalAverageEnd,
+      participantsByMonth,
+      paginatedGroups,
+      totalPages,
+      validPage,
+      totalParticipants: groupsWithParticipantCount.reduce((a, g) => g.numParticipants + a, 0),
+      totalNewGroups: groupsWithParticipantCount.length,
+    });
   } catch (e) {
-    const msg = 'An error occurred while fetching chart data';
+    const msg = 'An error occurred while fetching group data';
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
@@ -720,53 +739,49 @@ export const delay = ms => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-export const getAggregatedGroupStats = async (req, res) => {
-  const aggregateQuery = [
-    {
-      $lookup: {
-        from: 'users',
-        localField: 'userId',
-        foreignField: '_id',
-        as: 'user',
-      },
-    },
-    {
-      $match: {
-        'user.role': req.query.role,
-      },
-    },
-  ];
+// export const getAggregatedGroupStats = async (req, res) => {
+//   const aggregateQuery = [
+//     {
+//       $lookup: {
+//         from: 'users',
+//         localField: 'userId',
+//         foreignField: '_id',
+//         as: 'user',
+//       },
+//     },
+//     {
+//       $match: {
+//         'user.role': req.query.role,
+//       },
+//     },
+//   ];
 
-  try {
-    // Groups for stats
-    const statGroups = await Group.aggregate(aggregateQuery);
-    const resultsPromises = statGroups.map(group => getGroupStats(group));
-    const stats = await Promise.all(resultsPromises);
+//   try {
+//     // Groups for stats
+//     const statGroups = await Group.aggregate(aggregateQuery);
+//     const resultsPromises = statGroups.map(group => getGroupStats(group));
+//     const stats = await Promise.all(resultsPromises);
 
-    const isValid = v => v && !Array.isArray(v);
+//     const isValid = v => v && !Array.isArray(v);
 
-    // Only calculate total average for fully complete groups
-    const finishedStats = stats.filter(
-      s => isValid(s.averagedStartResults?.[0]) && isValid(s.averagedEndResults?.[0])
-    );
-    const totalAverageStart = getTotalAverage(finishedStats, 'averagedStartResults');
-    const totalAverageEnd = getTotalAverage(finishedStats, 'averagedEndResults');
+//     // Only calculate total average for fully complete groups
+//     const finishedStats = stats.filter(
+//       s => isValid(s.averagedStartResults?.[0]) && isValid(s.averagedEndResults?.[0])
+//     );
+//     const totalAverageStart = getTotalAverage(finishedStats, 'averagedStartResults');
+//     const totalAverageEnd = getTotalAverage(finishedStats, 'averagedEndResults');
 
-    // Get survey data
-    const surveys = await SurveyResponse.find();
-
-    return res.status(200).json({
-      stats,
-      totalAverageStart,
-      totalAverageEnd,
-      surveys,
-    });
-  } catch (e) {
-    const msg = 'An error occurred while fetching group results page';
-    console.error(msg, e);
-    return res.status(500).json({ msg });
-  }
-};
+//     return res.status(200).json({
+//       stats,
+//       totalAverageStart,
+//       totalAverageEnd,
+//     });
+//   } catch (e) {
+//     const msg = 'An error occurred while fetching group results page';
+//     console.error(msg, e);
+//     return res.status(500).json({ msg });
+//   }
+// };
 
 export const getSingleGroupResults = async (req, res) => {
   try {

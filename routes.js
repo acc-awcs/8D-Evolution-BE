@@ -36,8 +36,8 @@ import {
   updateGroup,
   getGroupResultsPage,
   getSingleGroupResults,
-  getAggregatedGroupStats,
-  getChartData,
+  // getAggregatedGroupStats,
+  // getChartData,
   importManualData,
 } from './controllers/groups.js';
 const router = Router();
@@ -80,10 +80,10 @@ router.get('/survey', getSurveyResponses);
 router.use(checkAdminAuth);
 
 router.get('/group-results-page', getGroupResultsPage);
-router.get('/group-results-aggregate', getAggregatedGroupStats);
+// router.get('/group-results-aggregate', getAggregatedGroupStats);
 router.get('/group-results-single', getSingleGroupResults);
 router.get('/individual-results', getIndividualResults);
-router.get('/chart', getChartData);
+// router.get('/chart', getChartData);
 router.get('/users', getUsers);
 router.get('/user', getUser);
 router.post('/update-user', updateUser);
