@@ -653,6 +653,15 @@ export const getGroupResultsPage = async (req, res) => {
   try {
     const groups = await Group.find(query);
 
+    if (groups.length < 1) {
+      return res.status(200).json({
+        invalidTimes: true,
+        msg: allTime
+          ? 'Looks like there isn’t any data to show here yet.'
+          : 'No data exists for this time range.',
+      });
+    }
+
     // Chart Data
     const groupsPromise = groups.map(group => getGroupResultsWithDate(group));
     const groupsWithParticipantCount = await Promise.all(groupsPromise);
@@ -808,9 +817,11 @@ export const delay = ms => {
 export const getSingleGroupResults = async (req, res) => {
   try {
     const group = await Group.findOne({
-      creatorRole: req.query.role,
       _id: req.query.groupId,
     });
+    if (!group) {
+      return res.status(404).json({ msg: "Couldn't find that group" });
+    }
     const stats = await getGroupStats(group);
     return res.status(200).json({
       stats,
