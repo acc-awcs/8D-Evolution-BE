@@ -7,6 +7,7 @@ import { User } from '../models/User.js';
 import { SurveyResponse } from '../models/SurveyResponse.js';
 import {
   addMonths,
+  addYears,
   differenceInCalendarMonths,
   endOfDay,
   endOfMonth,
@@ -630,6 +631,7 @@ export const getGroupResultsPage = async (req, res) => {
   let startDate = new Date(`${req.query.s}`);
   let endDate = new Date(`${req.query.e}`);
   const usingCustomDates = req.query.tr === 'custom';
+  const usingLastYear = req.query.tr === 'year';
   let allTime = true;
   if (usingCustomDates) {
     if (isValid(startDate) && isValid(endDate) && isAfter(endDate, startDate)) {
@@ -649,6 +651,15 @@ export const getGroupResultsPage = async (req, res) => {
       });
     }
   }
+  if (usingLastYear) {
+    const today = new Date();
+    endDate = today;
+    startDate = addYears(today, -1);
+    startDate = startOfDay(startDate);
+    endDate = endOfDay(endDate);
+    allTime = false;
+  }
+  console.log('USING LAST YEAR????', usingLastYear, startDate, endDate);
 
   try {
     const groups = await Group.find(query);
@@ -671,6 +682,7 @@ export const getGroupResultsPage = async (req, res) => {
     const numMonthsToShow = allTime
       ? differenceInCalendarMonths(today, earliestStartDate) + 1
       : differenceInCalendarMonths(endDate, startDate) + 1;
+    console.log('MTW', numMonthsToShow);
     const participantsByMonth = Array.from({ length: numMonthsToShow }, (v, i) => {
       const targetDate = allTime
         ? addMonths(today, -(numMonthsToShow - i - 1))
@@ -684,7 +696,7 @@ export const getGroupResultsPage = async (req, res) => {
       if (i === 0 && !allTime) {
         const startDateShort = format(startDate, 'MM/dd');
         month = `${month} (>=${startDateShort})`;
-      } else if (i === numMonthsToShow - 1 && !allTime) {
+      } else if (i === numMonthsToShow - 1 && !allTime && !usingLastYear) {
         const endDateShort = format(endDate, 'MM/dd');
         month = `${month} (<=${endDateShort})`;
       }
