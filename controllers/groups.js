@@ -657,9 +657,9 @@ export const getGroupResultsPage = async (req, res) => {
     startDate = addYears(today, -1);
     startDate = startOfDay(startDate);
     endDate = endOfDay(endDate);
+    query['startPollDate'] = { $gte: startDate, $lte: endDate };
     allTime = false;
   }
-  console.log('USING LAST YEAR????', usingLastYear, startDate, endDate);
 
   try {
     const groups = await Group.find(query);
@@ -682,7 +682,6 @@ export const getGroupResultsPage = async (req, res) => {
     const numMonthsToShow = allTime
       ? differenceInCalendarMonths(today, earliestStartDate) + 1
       : differenceInCalendarMonths(endDate, startDate) + 1;
-    console.log('MTW', numMonthsToShow);
     const participantsByMonth = Array.from({ length: numMonthsToShow }, (v, i) => {
       const targetDate = allTime
         ? addMonths(today, -(numMonthsToShow - i - 1))
