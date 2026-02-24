@@ -3,6 +3,7 @@ import {
   addResult,
   addSurveyResponse,
   getIndividualResults,
+  getIndividualUserResults,
   getResultByCode,
   getSurveyResponses,
 } from './controllers/results.js';
@@ -43,7 +44,7 @@ import {
 const router = Router();
 
 // TEMPORARY ROUTE - keep disabled generally
-router.get('/import-manual-data', importManualData);
+// router.get('/import-manual-data', importManualData);
 
 router.get('/results', getResultByCode);
 router.post('/results', addResult);
@@ -83,7 +84,8 @@ router.get('/group-results-page', getGroupResultsPage);
 // router.get('/group-results-aggregate', getAggregatedGroupStats);
 router.get('/group-results-single', getSingleGroupResults);
 router.get('/individual-results', getIndividualResults);
-// router.get('/chart', getChartData);
+router.get('/individual-users-results-page', getIndividualUserResults);
+router.get('/surveys', getSurveyResponses);
 router.get('/users', getUsers);
 router.get('/user', getUser);
 router.post('/update-user', updateUser);

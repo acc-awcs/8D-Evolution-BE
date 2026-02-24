@@ -22,7 +22,7 @@ import {
 import csv from 'csvtojson';
 
 export const importManualData = async (req, res) => {
-  // CSVs downloaded from https://docs.google.com/spreadsheets/d/17M0OK0N1E_MfBCxzaueRaHwSjl44iKvcGQ2TP0AtO3Q/edit?gid=1843839963#gid=1843839963
+  // CSVs downloaded from provided AWCS spreadsheet
   const csvFilePath = 'data/facilitator-data.csv'; // 'Complete + Running' tab
   const participantCsvFilePath = 'data/participant-data.csv'; // 'Complete Cohorts' tab
   const jsonArray = await csv().fromFile(csvFilePath);
@@ -45,9 +45,6 @@ export const importManualData = async (req, res) => {
     if (!accum[facilitationId]) {
       let endPollDate = new Date(row['End Date']);
       let startPollDate = new Date(row['Start Date']);
-
-      // let endPollDate = parse(row['End Date'], formatString, new Date(), localeOptions);
-      //   let startPollDate = parse(row['Start Date'], formatString, new Date(), localeOptions);
 
       if (!isValid(endPollDate) || !row['Value after']) {
         endPollDate = null;
@@ -94,18 +91,6 @@ export const importManualData = async (req, res) => {
     return groupObj;
   });
   const stats = await Promise.all(resultsPromises);
-
-  // // Convert the CSV file to a JSON array of objects
-  // csv()
-  //   .fromFile(csvFilePath)
-  //   .then(jsonArrayObj => {
-  //     // When parsing is complete, write the result to a JSON file
-  //     // fs.writeFileSync(jsonFilePath, JSON.stringify(jsonArrayObj, null, 2), 'utf-8');
-  //     jsonData = jsonArrayObj;
-  //   })
-  //   .catch(err => {
-  //     console.error('Error during CSV to JSON conversion:', err);
-  //   });
 
   return res.status(200).json({ success: true, msg: 'Imported manual CSV data', stats });
 };
@@ -482,7 +467,7 @@ const formatManualAnswers = answersObj => {
 
 const isNonEmpty = v => v && !Array.isArray(v);
 
-const formatAnswers = resultsArray => {
+export const formatAnswers = resultsArray => {
   const formattedAnswers = resultsArray?.reduce(
     (ans, res, index) => {
       ans[0].push(res.d1);
@@ -584,53 +569,6 @@ const getGroupResultsWithDate = async group => {
     startPollDate: group.startPollDate,
   };
 };
-
-// Return table of unique, paginated groups
-// export const getGroupResultsPage = async (req, res) => {
-//   const page = req.query.page;
-//   const query = {
-//     creatorRole: req.query.role,
-//   };
-
-//   try {
-//     const totalCount = await Group.find(query).countDocuments();
-//     const allGroups = await Group.find(query);
-//     // const totalCount = totalPaginatedCount?.[0]?.totalDocuments;
-//     let validPage = page;
-//     const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
-//     if (totalPages - 1 < parseInt(page, 10)) {
-//       validPage = totalPages - 1;
-//     }
-//     if (parseInt(page, 10) < 0) {
-//       validPage = 0;
-//     }
-//     const paginatedGroupsInit = await Group.find(query)
-//       .sort({ createdAt: -1 })
-//       .skip(TABLE_PAGE_SIZE * validPage)
-//       .limit(TABLE_PAGE_SIZE);
-
-//     // Get the number of participants along with group object
-//     const groupsPromise = paginatedGroupsInit.map(async group => {
-//       const numParticipants = await getGroupResultsWithDate(group);
-//       return {
-//         ...group.toJSON(),
-//         ...numParticipants,
-//       };
-//     });
-//     const paginatedGroups = await Promise.all(groupsPromise);
-
-//     return res.status(200).json({
-//       paginatedGroups,
-//       totalPages,
-//       validPage,
-//       allGroups,
-//     });
-//   } catch (e) {
-//     const msg = 'An error occurred while fetching group results page';
-//     console.error(msg, e);
-//     return res.status(500).json({ msg });
-//   }
-// };
 
 export const getGroupResultsPage = async (req, res) => {
   const page = req.query.page;
@@ -739,28 +677,6 @@ export const getGroupResultsPage = async (req, res) => {
       .skip(TABLE_PAGE_SIZE * validPage)
       .limit(TABLE_PAGE_SIZE);
 
-    //    const paginatedGroupsInit = await  Group.aggregate([
-    //   {
-    //     $addFields: {
-    //       sortPriority: {
-    //         $switch: {
-    //           branches: [
-    //             { 'case': { $eq: ['$priority', 'high'] }, then: 3 },
-    //             { 'case': { $eq: ['$priority', 'medium'] }, then: 2 },
-    //             { 'case': { $eq: ['$priority', 'low'] }, then: 1 },
-    //           ],
-    //           'default': 0, // for documents with no matching priority
-    //         },
-    //       },
-    //     },
-    //   },
-    //   {
-    //     $sort: { sortPriority: -1, createdAt: -1 },
-    //   },
-    //   { $skip: TABLE_PAGE_SIZE * validPage },
-    //   { $limit: TABLE_PAGE_SIZE }
-    // ]);
-
     // Get the number of participants along with group object
     const paginatedGroupsPromise = paginatedGroupsInit.map(async group => {
       const numParticipants = await getGroupResultsWithDate(group);
@@ -793,50 +709,6 @@ export const delay = ms => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-// export const getAggregatedGroupStats = async (req, res) => {
-//   const aggregateQuery = [
-//     {
-//       $lookup: {
-//         from: 'users',
-//         localField: 'userId',
-//         foreignField: '_id',
-//         as: 'user',
-//       },
-//     },
-//     {
-//       $match: {
-//         'user.role': req.query.role,
-//       },
-//     },
-//   ];
-
-//   try {
-//     // Groups for stats
-//     const statGroups = await Group.aggregate(aggregateQuery);
-//     const resultsPromises = statGroups.map(group => getGroupStats(group));
-//     const stats = await Promise.all(resultsPromises);
-
-//     const isValid = v => v && !Array.isArray(v);
-
-//     // Only calculate total average for fully complete groups
-//     const finishedStats = stats.filter(
-//       s => isValid(s.averagedStartResults?.[0]) && isValid(s.averagedEndResults?.[0])
-//     );
-//     const totalAverageStart = getTotalAverage(finishedStats, 'averagedStartResults');
-//     const totalAverageEnd = getTotalAverage(finishedStats, 'averagedEndResults');
-
-//     return res.status(200).json({
-//       stats,
-//       totalAverageStart,
-//       totalAverageEnd,
-//     });
-//   } catch (e) {
-//     const msg = 'An error occurred while fetching group results page';
-//     console.error(msg, e);
-//     return res.status(500).json({ msg });
-//   }
-// };
-
 export const getSingleGroupResults = async (req, res) => {
   try {
     const group = await Group.findOne({
@@ -845,9 +717,13 @@ export const getSingleGroupResults = async (req, res) => {
     if (!group) {
       return res.status(404).json({ msg: "Couldn't find that group" });
     }
+    const surveyResponses = await SurveyResponse.find({
+      pollCode: group.endPollCode,
+    });
     const stats = await getGroupStats(group);
     return res.status(200).json({
       stats,
+      surveyResponses,
     });
   } catch (e) {
     const msg = 'An error occurred while fetching single group results';

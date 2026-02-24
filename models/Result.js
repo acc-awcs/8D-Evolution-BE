@@ -18,6 +18,9 @@ const resultSchema = new mongoose.Schema(
     isStart: Boolean,
 
     startCode: String, // Match the result with the starting point code (for individual users)
+
+    individual: Boolean, // Whether we should show it in the individual user dashboard
+    quizOnly: Boolean, // An individual user result that's not part of a start or an end poll
   },
   {
     timestamps: true,
