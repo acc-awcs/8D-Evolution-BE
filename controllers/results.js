@@ -118,7 +118,10 @@ export const addSurveyResponse = async (req, res) => {
 const getFacilitationData = async surveyResponse => {
   const facilitation = await Group.findOne({ endPollCode: surveyResponse.pollCode });
   if (!facilitation) {
-    return surveyResponse;
+    return {
+      ...surveyResponse.toJSON(),
+      createdDate: format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
+    };
   }
   return {
     ...surveyResponse.toJSON(),
@@ -126,6 +129,7 @@ const getFacilitationData = async surveyResponse => {
     creatorRole: facilitation.creatorRole,
     creatorShortName: facilitation.creatorShortName,
     facilitationName: facilitation.name,
+    createdDate: format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
   };
 };
 
