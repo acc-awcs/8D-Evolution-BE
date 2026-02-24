@@ -115,6 +115,11 @@ export const addSurveyResponse = async (req, res) => {
   return res.status(200).json(response);
 };
 
+export const deleteSurvey = async (req, res) => {
+  const deletedSurvey = await SurveyResponse.findByIdAndDelete(req.body.surveyId);
+  return res.json({ deletedSurvey });
+};
+
 const getFacilitationData = async surveyResponse => {
   const facilitation = await Group.findOne({ endPollCode: surveyResponse.pollCode });
   if (!facilitation) {

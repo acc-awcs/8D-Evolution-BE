@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   addResult,
   addSurveyResponse,
+  deleteSurvey,
   getIndividualResults,
   getIndividualUserResults,
   getResultByCode,
@@ -86,6 +87,7 @@ router.get('/group-results-single', getSingleGroupResults);
 router.get('/individual-results', getIndividualResults);
 router.get('/individual-users-results-page', getIndividualUserResults);
 router.get('/surveys', getSurveyResponses);
+router.post('/delete-survey', deleteSurvey);
 router.get('/users', getUsers);
 router.get('/user', getUser);
 router.post('/update-user', updateUser);
