@@ -38,9 +38,9 @@ import {
   updateGroup,
   getGroupResultsPage,
   getSingleGroupResults,
-  // getAggregatedGroupStats,
-  // getChartData,
   importManualData,
+  adminUpdateGroup,
+  exportGroups,
 } from './controllers/groups.js';
 const router = Router();
 
@@ -92,5 +92,7 @@ router.get('/users', getUsers);
 router.get('/user', getUser);
 router.post('/update-user', updateUser);
 router.post('/delete-user', deleteUser);
+router.post('/admin-update-group', adminUpdateGroup);
+router.post('/export-groups', exportGroups);
 
 export default router;

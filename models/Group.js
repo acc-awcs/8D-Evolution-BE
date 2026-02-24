@@ -24,6 +24,8 @@ const groupSchema = new mongoose.Schema(
     manualEndData: Object,
     manualNumParticipants: Number,
     initialManualImport: Boolean,
+
+    isTest: Boolean, // Hide from admin stats
   },
   {
     timestamps: true,

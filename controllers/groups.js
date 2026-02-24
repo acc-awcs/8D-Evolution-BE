@@ -80,7 +80,6 @@ export const importManualData = async (req, res) => {
         [dynamicKey]: row['Value after'],
       },
     };
-    // accum[facilitationId]?.manualEndData?.[dynamicKey] = row['Value after'];
     return accum;
   }, {});
 
@@ -570,11 +569,75 @@ const getGroupResultsWithDate = async group => {
   };
 };
 
+const dynamicKeys = ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8'];
+
+const formatForExport = async group => {
+  // Convert into 8 individual rows per group
+  let startResults = [];
+  let endResults = [];
+  let averagedStartResults = null;
+  let averagedEndResults = null;
+
+  if (!group.manualEntry) {
+    if (group.startPollInitiated) {
+      startResults = await Result.find({ pollCode: group.startPollCode });
+    }
+    if (group.endPollInitiated) {
+      endResults = await Result.find({ pollCode: group.endPollCode });
+    }
+    averagedStartResults = startResults?.length > 0 ? formatAnswers(startResults) : null;
+    averagedEndResults = startResults?.length > 0 ? formatAnswers(endResults) : null;
+  }
+
+  return dynamicKeys.map((k, i) => {
+    const row = {
+      ['Facilitation']: group.name,
+      ['Facilitator']: group.creatorShortName,
+      ['Start Date']: format(group.startPollDate, 'MM/dd/yyyy'),
+      ['End Date']: format(group.endPollDate, 'MM/dd/yyyy'),
+      ['Dynamic']: `D${i + 1}`,
+    };
+    if (group.manualEntry) {
+      row['Value before'] = group.manualStartData[k] ? parseFloat(group.manualStartData[k]) : null;
+      row['Value after'] = group.manualEndData[k] ? parseFloat(group.manualEndData[k]) : null;
+      row['Participants'] = group.manualNumParticipants;
+    } else {
+      row['Value before'] = isNonEmpty(averagedStartResults?.[i]) ? averagedStartResults[i] : null;
+      row['Value after'] = isNonEmpty(averagedEndResults?.[i]) ? averagedEndResults[i] : null;
+      row['Participants'] = startResults ? startResults.length : null;
+    }
+
+    return row;
+  });
+};
+
+export const exportGroups = async (req, res) => {
+  try {
+    // all groups with given role
+    const allGroups = await Group.find({
+      creatorRole: req.query.role,
+      isTest: { $ne: true },
+    });
+    const groupsPromise = allGroups.map(group => formatForExport(group));
+    const rowsByGroup = await Promise.all(groupsPromise);
+    const rows = rowsByGroup.reduce((a, rowsArr) => [...a, ...rowsArr], []);
+    return res.status(200).json({
+      rows,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while preparing groups for export';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
 export const getGroupResultsPage = async (req, res) => {
   const page = req.query.page;
+  const showTestData = req.query.showTestData === 'true';
   const query = {
     creatorRole: req.query.role,
     startPollInitiated: true,
+    isTest: { $ne: true },
   };
 
   // if start and end dates are defined, and start date is bigger than the end date ...
@@ -672,7 +735,12 @@ export const getGroupResultsPage = async (req, res) => {
     if (parseInt(page, 10) < 0) {
       validPage = 0;
     }
-    const paginatedGroupsInit = await Group.find(query)
+
+    const { isTest, ...paginationQuery } = query;
+    if (!showTestData) {
+      paginationQuery.isTest = { $ne: true };
+    }
+    const paginatedGroupsInit = await Group.find(paginationQuery)
       .sort({ initialManualImport: 1, createdAt: -1, startPollDate: -1 })
       .skip(TABLE_PAGE_SIZE * validPage)
       .limit(TABLE_PAGE_SIZE);
@@ -727,6 +795,20 @@ export const getSingleGroupResults = async (req, res) => {
     });
   } catch (e) {
     const msg = 'An error occurred while fetching single group results';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
+};
+
+export const adminUpdateGroup = async (req, res) => {
+  try {
+    const group = await Group.findById(req.body.groupId);
+
+    group.isTest = req.body.isTest === 'true' ? true : false;
+    await group.save();
+    return res.status(200).json(group);
+  } catch (e) {
+    const msg = 'An error occurred while admin editing group';
     console.error(msg, e);
     return res.status(500).json({ msg });
   }
