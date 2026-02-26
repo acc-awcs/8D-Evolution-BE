@@ -32,4 +32,12 @@ const groupSchema = new mongoose.Schema(
   }
 );
 
+groupSchema.index({
+  name: 'text',
+  organization: 'text',
+  month: 'text',
+  year: 'text',
+  creatorShortName: 'text',
+});
+
 export const Group = mongoose.model('Group', groupSchema);

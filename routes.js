@@ -3,6 +3,7 @@ import {
   addResult,
   addSurveyResponse,
   deleteSurvey,
+  exportSurveys,
   getIndividualResults,
   getIndividualUserResults,
   getResultByCode,
@@ -94,5 +95,6 @@ router.post('/update-user', updateUser);
 router.post('/delete-user', deleteUser);
 router.post('/admin-update-group', adminUpdateGroup);
 router.post('/export-groups', exportGroups);
+router.post('/export-surveys', exportSurveys);
 
 export default router;

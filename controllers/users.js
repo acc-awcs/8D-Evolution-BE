@@ -2,6 +2,7 @@ import { ADMIN, FACILITATOR, GROUP_LEAD, TABLE_PAGE_SIZE } from '../helpers/cons
 import bcrypt from 'bcrypt';
 import { User } from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import { Group } from '../models/Group.js';
 
 // Login for non-admin users (if an admin logs in using this method, redirect to admin home on frontend)
 export const login = async (req, res) => {
@@ -267,13 +268,17 @@ export const getUsers = async (req, res) => {
 export const getUser = async (req, res) => {
   try {
     const user = await User.findById(req.query.userId);
+    let groups = null;
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'Could not find associated user',
       });
     }
-    return res.status(200).json({ user });
+    if (user.role !== ADMIN) {
+      groups = await Group.find({ userId: req.query.userId });
+    }
+    return res.status(200).json({ user, groups });
   } catch (e) {
     const msg = 'An error occurred while fetching user';
     console.error(msg, e);

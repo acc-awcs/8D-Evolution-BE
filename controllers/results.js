@@ -72,10 +72,17 @@ export const getResultByCode = async (req, res) => {
       }
     }
 
-    return res.status(200).json({
+    const resultResp = {
       currentResults: result,
       showEndingSurvey,
-    });
+    };
+
+    if (req.query.addSurvey === 'true') {
+      const survey = await SurveyResponse.findOne({ resultCode: req.query.resultCode });
+      resultResp.survey = survey;
+    }
+
+    return res.status(200).json(resultResp);
   } catch (e) {
     const msg = 'An error occurred while fetching results';
     console.error(msg);
@@ -120,12 +127,27 @@ export const deleteSurvey = async (req, res) => {
   return res.json({ deletedSurvey });
 };
 
-const getFacilitationData = async surveyResponse => {
+const getFacilitationData = async (surveyResponse, forExport) => {
   const facilitation = await Group.findOne({ endPollCode: surveyResponse.pollCode });
   if (!facilitation) {
+    if (forExport) {
+      return {
+        Response: surveyResponse.text,
+        'Created On': format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
+        Facilitator: null,
+      };
+    }
     return {
       ...surveyResponse.toJSON(),
       createdDate: format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
+    };
+  }
+  if (forExport) {
+    return {
+      Response: surveyResponse.text,
+      'Created On': format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
+      Facilitator: facilitation.creatorShortName,
+      'Group Name': facilitation.name,
     };
   }
   return {
@@ -136,6 +158,22 @@ const getFacilitationData = async surveyResponse => {
     facilitationName: facilitation.name,
     createdDate: format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
   };
+};
+
+export const exportSurveys = async (req, res) => {
+  try {
+    // all groups with given role
+    const allSurveyResponses = await SurveyResponse.find();
+    const surveysPromise = allSurveyResponses.map(s => getFacilitationData(s, true));
+    const rows = await Promise.all(surveysPromise);
+    return res.status(200).json({
+      rows,
+    });
+  } catch (e) {
+    const msg = 'An error occurred while preparing surveys for export';
+    console.error(msg, e);
+    return res.status(500).json({ msg });
+  }
 };
 
 export const getSurveyResponses = async (req, res) => {

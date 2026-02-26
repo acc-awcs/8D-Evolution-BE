@@ -178,8 +178,13 @@ export const getGroups = async (req, res) => {
 export const getGroup = async (req, res) => {
   try {
     const group = await Group.findById(req.query.groupId);
+    let surveys = null;
+    if (group.endPollInitiated && group.endPollCode) {
+      surveys = await SurveyResponse.find({ pollCode: group.endPollCode });
+    }
     return res.status(200).json({
       group,
+      surveys,
     });
   } catch (e) {
     const msg = 'An error occurred while fetching group';
@@ -740,6 +745,11 @@ export const getGroupResultsPage = async (req, res) => {
     if (!showTestData) {
       paginationQuery.isTest = { $ne: true };
     }
+    if (req.query.i && req.query.i.length > 0) {
+      var re = new RegExp(req.query.i, 'i');
+      paginationQuery.$or = [{ name: { $regex: re } }, { creatorShortName: { $regex: re } }];
+    }
+
     const paginatedGroupsInit = await Group.find(paginationQuery)
       .sort({ initialManualImport: 1, createdAt: -1, startPollDate: -1 })
       .skip(TABLE_PAGE_SIZE * validPage)
