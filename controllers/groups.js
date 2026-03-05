@@ -56,7 +56,7 @@ export const importManualData = async (req, res) => {
         manualEntry: true,
         name: facilitationId,
         creatorRole: FACILITATOR,
-        creatorShortName: facilitationId?.split('-')?.[1],
+        creatorShortName: row['Facilitator'],
         startPollInitiated: startPollDate ? true : false,
         startPollDate,
         endPollInitiated: endPollDate ? true : false,
