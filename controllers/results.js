@@ -16,7 +16,7 @@ import { Group } from '../models/Group.js';
 import { Result } from '../models/Result.js';
 import { SurveyResponse } from '../models/SurveyResponse.js';
 import { formatAnswers } from './groups.js';
-import { TABLE_PAGE_SIZE } from '../helpers/constants.js';
+import { FACILITATOR, GROUP_LEAD, TABLE_PAGE_SIZE } from '../helpers/constants.js';
 
 export const getResults = async (req, res) => {
   const results = await Result.find();
@@ -134,7 +134,10 @@ const getFacilitationData = async (surveyResponse, forExport) => {
       return {
         Response: surveyResponse.text,
         'Created On': format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
+        'Group Name': null,
         Facilitator: null,
+        'Live or Test': null,
+        'Creator Role': null,
       };
     }
     return {
@@ -148,6 +151,13 @@ const getFacilitationData = async (surveyResponse, forExport) => {
       'Created On': format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
       Facilitator: facilitation.creatorShortName,
       'Group Name': facilitation.name,
+      'Live or Test': facilitation.isTest ? 'Test' : 'Live',
+      'Creator Role':
+        facilitation.creatorRole === FACILITATOR
+          ? 'Facilitator'
+          : facilitation.creatorRole === GROUP_LEAD
+          ? 'Group Lead'
+          : 'N/A',
     };
   }
   return {
@@ -157,6 +167,8 @@ const getFacilitationData = async (surveyResponse, forExport) => {
     creatorShortName: facilitation.creatorShortName,
     facilitationName: facilitation.name,
     createdDate: format(surveyResponse.createdAt, 'MMMM dd, yyyy'),
+    isTest: facilitation.isTest,
+    creatorRole: facilitation.creatorRole,
   };
 };
 
