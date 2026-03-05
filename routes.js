@@ -21,7 +21,6 @@ import {
   getUsers,
   getUser,
   updateUser,
-  upgradeAccount,
   deleteUser,
   deleteAccount,
 } from './controllers/users.js';
@@ -46,7 +45,7 @@ import {
 const router = Router();
 
 // TEMPORARY ROUTE - keep disabled generally
-// router.get('/import-manual-data', importManualData);
+router.get('/import-manual-data', importManualData);
 
 router.get('/results', getResultByCode);
 router.post('/results', addResult);
