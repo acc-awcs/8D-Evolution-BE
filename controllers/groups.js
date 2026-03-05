@@ -732,16 +732,6 @@ export const getGroupResultsPage = async (req, res) => {
     const totalAverageEnd = getTotalAverage(stats, 'averagedEndResults');
 
     // Paginated Data
-    const totalCount = groups.length;
-    let validPage = page;
-    const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
-    if (totalPages - 1 < parseInt(page, 10)) {
-      validPage = totalPages - 1;
-    }
-    if (parseInt(page, 10) < 0) {
-      validPage = 0;
-    }
-
     const { isTest, ...paginationQuery } = query;
     if (!showTestData) {
       paginationQuery.isTest = { $ne: true };
@@ -749,6 +739,16 @@ export const getGroupResultsPage = async (req, res) => {
     if (req.query.i && req.query.i.length > 0) {
       var re = new RegExp(req.query.i, 'i');
       paginationQuery.$or = [{ name: { $regex: re } }, { creatorShortName: { $regex: re } }];
+    }
+
+    const totalCount = Group.countDocuments(paginationQuery);
+    let validPage = page;
+    const totalPages = Math.ceil(totalCount / TABLE_PAGE_SIZE);
+    if (totalPages - 1 < parseInt(page, 10)) {
+      validPage = totalPages - 1;
+    }
+    if (parseInt(page, 10) < 0) {
+      validPage = 0;
     }
 
     const paginatedGroupsInit = await Group.find(paginationQuery)
